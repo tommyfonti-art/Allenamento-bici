@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diario 4 Mesi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+/* layout: sticky top nav with pill tabs; each tab a stacked-card panel; workout log uses a 3-row set grid per exercise */
+:root{
+  --bg:#131110; --surface:#1c1917; --surface-2:#242019; --surface-3:#2c2620;
+  --fg:#f2ede6; --muted:#a89f92; --muted-2:#6f665a;
+  --accent:#e8963c; --accent-fg:#1b1409;
+  --accent-2:#4fb3a9;
+  --border:#332c24;
+  --danger:#e2574c; --success:#6fbf73;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#faf7f2; --surface:#ffffff; --surface-2:#f4efe6; --surface-3:#ece4d5;
+    --fg:#211d18; --muted:#6b6255; --muted-2:#8b8375;
+    --accent:#c97a1f; --accent-fg:#fffaf2;
+    --accent-2:#1f8b80;
+    --border:#e4dccd;
+    --danger:#c23b31; --success:#3f8f45;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#faf7f2; --surface:#ffffff; --surface-2:#f4efe6; --surface-3:#ece4d5;
+  --fg:#211d18; --muted:#6b6255; --muted-2:#8b8375;
+  --accent:#c97a1f; --accent-fg:#fffaf2;
+  --accent-2:#1f8b80;
+  --border:#e4dccd;
+  --danger:#c23b31; --success:#3f8f45;
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --bg:#131110; --surface:#1c1917; --surface-2:#242019; --surface-3:#2c2620;
+  --fg:#f2ede6; --muted:#a89f92; --muted-2:#6f665a;
+  --accent:#e8963c; --accent-fg:#1b1409;
+  --accent-2:#4fb3a9;
+  --border:#332c24;
+  --danger:#e2574c; --success:#6fbf73;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--fg); font-family:'Inter',system-ui,sans-serif; margin:0; padding-inline:16px; padding-block:0 24px; line-height:1.45;}
+h1,h2,h3{font-family:'Oswald',system-ui,sans-serif; letter-spacing:.01em; text-wrap:balance; margin:0;}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+a{color:var(--accent)}
+button{font:inherit; cursor:pointer;}
+.wrap{max-width:720px; margin:0 auto;}
+
+/* header */
+.topbar{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--bg); padding-top:14px; padding-bottom:10px; border-bottom:1px solid var(--border);}
+.title-row{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:10px;}
+.title-row h1{font-size:22px; font-weight:700;}
+.title-row .sub{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
+.tabs{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px;}
+.tabs::-webkit-scrollbar{display:none}
+.tab-btn{flex:0 0 auto; background:var(--surface-2); color:var(--muted); border:1px solid var(--border); border-radius:999px; padding:7px 14px; font-size:13px; font-weight:600; white-space:nowrap;}
+.tab-btn[aria-selected="true"]{background:var(--accent); color:var(--accent-fg); border-color:var(--accent);}
+
+.panel{padding-top:18px; display:flex; flex-direction:column; gap:14px;}
+.panel[hidden]{display:none;}
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px;}
+.card h2{font-size:17px; margin-bottom:4px;}
+.card .desc{font-size:13px; color:var(--muted); margin-bottom:10px;}
+.eyebrow{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:4px;}
+
+.pill-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+.pill{background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:600; color:var(--muted);}
+.pill[aria-pressed="true"]{background:var(--accent-2); color:#0b1f1c; border-color:var(--accent-2);}
+
+.stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:8px; margin-bottom:4px;}
+.stat{background:var(--surface-2); border-radius:10px; padding:10px 10px;}
+.stat .num{font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600;}
+.stat .lbl{font-size:11px; color:var(--muted); margin-top:2px;}
+
+.note{background:var(--surface-2); border-left:3px solid var(--accent); border-radius:8px; padding:10px 12px; font-size:13px; color:var(--muted);}
+.note.warn{border-left-color:var(--danger);}
+.note b{color:var(--fg);}
+
+.exercise{border-top:1px solid var(--border); padding-top:12px; margin-top:12px;}
+.exercise:first-child{border-top:none; margin-top:0; padding-top:0;}
+.ex-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
+.ex-name{font-weight:600; font-size:14.5px;}
+.ex-target{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
+.superserie-tag{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent-2); border:1px solid var(--accent-2); border-radius:6px; padding:1px 6px; margin-right:6px; vertical-align:middle;}
+
+.set-grid{display:grid; grid-template-columns:28px 1fr 1fr 32px; gap:8px; align-items:center; margin-bottom:6px;}
+.set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
+.set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
+.set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
+.set-grid .check{width:22px; height:22px; accent-color:var(--success); justify-self:center;}
+.col-lbl{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.04em;}
+
+.btn{background:var(--accent); color:var(--accent-fg); border:none; border-radius:10px; padding:11px 16px; font-weight:700; font-size:14px; width:100%;}
+.btn:active{opacity:.85}
+.btn.secondary{background:var(--surface-2); color:var(--fg); border:1px solid var(--border);}
+.btn.small{width:auto; padding:8px 14px; font-size:13px;}
+.btn:disabled{opacity:.5}
+
+.save-row{display:flex; gap:8px; align-items:center; margin-top:14px;}
+.save-status{font-size:12px; color:var(--muted); flex:1;}
+.save-status.ok{color:var(--success);}
+
+.history-item{display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-top:1px solid var(--border); font-size:13px;}
+.history-item:first-child{border-top:none;}
+.history-item .d{font-family:'IBM Plex Mono',monospace; color:var(--muted);}
+
+.macro-row{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;}
+.macro{font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--surface-2); border-radius:8px; padding:5px 10px;}
+.macro.total{background:var(--accent); color:var(--accent-fg); font-weight:700;}
+
+.meal-block{border-top:1px solid var(--border); padding-top:12px; margin-top:12px;}
+.meal-block:first-child{border-top:none; margin-top:0; padding-top:0;}
+.meal-name{font-weight:700; font-size:13.5px; margin-bottom:8px;}
+.food-item{display:flex; align-items:center; gap:8px; padding:6px 0; flex-wrap:wrap;}
+.food-item .fi-name{font-size:13.5px; flex:1; min-width:120px;}
+.food-item .fi-amount{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--muted); white-space:nowrap;}
+.food-item.swapped .fi-name{color:var(--accent-2);}
+.swap-btn{background:var(--surface-2); border:1px solid var(--border); color:var(--muted); border-radius:7px; width:26px; height:26px; font-size:13px; flex:0 0 auto; line-height:1;}
+.swap-btn:hover{color:var(--fg); border-color:var(--accent-2);}
+.swap-select{display:none; width:100%; margin-top:6px; background:var(--surface-2); border:1px solid var(--accent-2); color:var(--fg); border-radius:8px; padding:7px 8px; font-size:13px;}
+.swap-select.open{display:block;}
+.fixed-tag{font-size:10.5px; color:var(--muted-2); font-style:italic;}
+
+.supp-table{width:100%; border-collapse:collapse; font-size:13px;}
+.supp-table td{padding:8px 0; border-bottom:1px solid var(--border); vertical-align:top;}
+.supp-table tr:last-child td{border-bottom:none;}
+.supp-table .sname{font-weight:600; width:38%;}
+.supp-table .swhat{color:var(--muted); font-size:12.5px;}
+
+.checklist{display:flex; flex-direction:column; gap:8px;}
+.check-item{display:flex; align-items:flex-start; gap:10px; background:var(--surface-2); border-radius:10px; padding:10px 12px;}
+.check-item input{width:20px; height:20px; margin-top:1px; accent-color:var(--success); flex:0 0 auto;}
+.check-item .ci-name{font-weight:600; font-size:13.5px;}
+.check-item .ci-detail{font-size:12px; color:var(--muted); margin-top:2px;}
+
+.input-row{display:flex; gap:8px; margin-bottom:10px;}
+.input-row input{flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 10px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
+
+.bw-table{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px;}
+.bw-table td{padding:6px 0; border-bottom:1px solid var(--border);}
+.bw-table td:last-child{text-align:right; font-family:'IBM Plex Mono',monospace; font-weight:600;}
+
+.empty{font-size:13px; color:var(--muted); font-style:italic; padding:8px 0;}
+
+.bike-wk{border-top:1px solid var(--border); padding-top:14px; margin-top:14px;}
+.bike-wk:first-child{border-top:none; margin-top:0; padding-top:0;}
+.bike-wk-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.bike-wk-name{font-weight:700; font-size:15px;}
+.bike-wk-meta{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
+.bike-wk-desc{font-size:13px; color:var(--muted); margin-top:6px;}
+.bike-wk-benefits{margin:8px 0 0; padding-left:18px; font-size:12.5px; color:var(--muted);}
+.bike-wk-benefits li{margin-bottom:2px;}
+.bike-wk-blocks{margin-top:10px; display:flex; flex-direction:column; gap:6px;}
+.bike-wk-block{display:flex; justify-content:space-between; gap:8px; background:var(--surface-2); border-radius:8px; padding:8px 10px; font-size:13px;}
+.bike-wk-block .bn{font-weight:600;}
+.bike-wk-block .bd{font-family:'IBM Plex Mono',monospace; color:var(--muted); white-space:nowrap;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="title-row">
+      <h1>Diario 4 Mesi</h1>
+      <span class="sub" id="today-label"></span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab-btn" role="tab" data-tab="allenamento" aria-selected="true">Allenamento</button>
+      <button class="tab-btn" role="tab" data-tab="alimentazione" aria-selected="false">Alimentazione</button>
+      <button class="tab-btn" role="tab" data-tab="integratori" aria-selected="false">Integratori</button>
+      <button class="tab-btn" role="tab" data-tab="bici" aria-selected="false">Bici</button>
+      <button class="tab-btn" role="tab" data-tab="fisio" aria-selected="false">Fisio</button>
+      <button class="tab-btn" role="tab" data-tab="progressi" aria-selected="false">Progressi</button>
+    </div>
+  </div>
+
+  <!-- ALLENAMENTO -->
+  <section class="panel" id="panel-allenamento">
+    <div class="card">
+      <div class="eyebrow">Biondo Fitness Coach</div>
+      <h2>Piano Massa &middot; 9 settimane</h2>
+      <div class="desc">Livello intermedio &middot; 3 Total Body in rotazione</div>
+      <div class="note warn"><b>Nota:</b> l'obiettivo dichiarato era le gambe, ma la scheda le tocca poco (solo 4 esercizi a volume di mantenimento, nessuno squat/stacco). Vale la pena riparlarne col coach.</div>
+    </div>
+
+    <div class="card">
+      <div class="pill-row" id="day-picker">
+        <button class="pill" data-day="tb1" aria-pressed="true">Total Body 1</button>
+        <button class="pill" data-day="tb2" aria-pressed="false">Total Body 2</button>
+        <button class="pill" data-day="tb3" aria-pressed="false">Total Body 3</button>
+      </div>
+      <div id="exercise-list"></div>
+      <div class="save-row">
+        <button class="btn" id="save-session">Salva allenamento di oggi</button>
+      </div>
+      <div class="save-status" id="save-status"></div>
+    </div>
+
+    <div class="card">
+      <h2>Storico allenamenti</h2>
+      <div id="session-history"><div class="empty">Caricamento...</div></div>
+    </div>
+  </section>
+
+  <!-- ALIMENTAZIONE -->
+  <section class="panel" id="panel-alimentazione" hidden>
+    <div class="card">
+      <div class="eyebrow">Piano nutrizionista &middot; Obiettivo Massa &middot; 24 settimane</div>
+      <h2>Ciclo: 3 giorni Dieta 1 + 1 giorno Dieta 2</h2>
+      <div class="desc">Si ripete per tutta la durata del piano.</div>
+    </div>
+
+    <div class="card">
+      <h2>Giorno 1</h2>
+      <div class="desc">Tocca &#8646; per sostituire un alimento con un equivalente (a parit&agrave; di proteine/carboidrati/grassi).</div>
+      <div id="diet1"></div>
+      <div class="macro-row" id="macro1"></div>
+    </div>
+
+    <div class="card">
+      <h2>Giorno 2</h2>
+      <div id="diet2"></div>
+      <div class="macro-row" id="macro2"></div>
+    </div>
+
+    <div class="card">
+      <h2>Regole generali</h2>
+      <div class="desc">Pasto libero 1 ogni 7 giorni &middot; sale normale &middot; acqua minimo 3 litri al giorno.</div>
+    </div>
+  </section>
+
+  <!-- INTEGRATORI -->
+  <section class="panel" id="panel-integratori" hidden>
+    <div class="card">
+      <h2>Ogni giorno</h2>
+      <table class="supp-table" id="supp-daily"></table>
+    </div>
+    <div class="card">
+      <h2>Intorno ai pesi</h2>
+      <table class="supp-table" id="supp-pesi"></table>
+    </div>
+    <div class="card">
+      <h2>Intorno alla bici</h2>
+      <table class="supp-table" id="supp-bici"></table>
+    </div>
+    <div class="note">Omega 3: da olio di alghe (vegano) &mdash; niente olio di pesce.</div>
+  </section>
+
+  <!-- BICI -->
+  <section class="panel" id="panel-bici" hidden>
+    <div class="card">
+      <h2>Bergamont Grandurance 20</h2>
+      <div class="desc">Gravel, usata spesso su asfalto &middot; pedala da 3-4 mesi</div>
+      <div class="stat-row">
+        <div class="stat"><div class="num">120<span style="font-size:12px">km</span></div><div class="lbl">media/sett</div></div>
+        <div class="stat"><div class="num">160<span style="font-size:12px">km</span></div><div class="lbl">record sett.</div></div>
+        <div class="stat"><div class="num">600<span style="font-size:12px">m</span></div><div class="lbl">dislivello max</div></div>
+        <div class="stat"><div class="num">3-4</div><div class="lbl">uscite/sett estate</div></div>
+      </div>
+      <div class="desc" style="margin-top:8px">Inverno: 2 uscite a settimana, forse 1.</div>
+    </div>
+
+    <div class="card">
+      <h2>Allenamenti dal consulente bici</h2>
+      <div class="desc">Dall'app, prima che venga chiusa &middot; generici, non tarati sui tuoi dati</div>
+      <div id="bike-workouts"></div>
+    </div>
+  </section>
+
+  <!-- FISIO -->
+  <section class="panel" id="panel-fisio" hidden>
+    <div class="card">
+      <h2>Esercizi riabilitativi</h2>
+      <div class="desc">Da fare 3 volte a settimana &middot; segna quelli completati oggi</div>
+      <div class="checklist" id="physio-list"></div>
+      <div class="save-row">
+        <button class="btn secondary" id="save-physio">Segna sessione fisio di oggi</button>
+      </div>
+      <div class="save-status" id="physio-status"></div>
+    </div>
+  </section>
+
+  <!-- PROGRESSI -->
+  <section class="panel" id="panel-progressi" hidden>
+    <div class="card">
+      <h2>Punto di partenza</h2>
+      <div class="stat-row">
+        <div class="stat"><div class="num">78.0<span style="font-size:12px">kg</span></div><div class="lbl">peso 25/09</div></div>
+        <div class="stat"><div class="num">187<span style="font-size:12px">cm</span></div><div class="lbl">altezza</div></div>
+        <div class="stat"><div class="num">34</div><div class="lbl">anni</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Registra peso</h2>
+      <div class="input-row">
+        <input type="date" id="bw-date">
+        <input type="number" id="bw-value" step="0.1" placeholder="kg">
+      </div>
+      <button class="btn" id="save-weight">Salva peso</button>
+      <div class="save-status" id="weight-status"></div>
+      <table class="bw-table" id="bw-history"></table>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var todayISO = new Date().toISOString().slice(0,10);
+  document.getElementById('today-label').textContent = todayISO;
+  document.getElementById('bw-date').value = todayISO;
+
+  // ---------- data ----------
+  var WORKOUTS = {
+    tb1: { label:'Total Body 1', exercises:[
+      {name:'Chest dip', reps:'max'},
+      {name:'Chin-ups (presa stretta parallela)', reps:'max'},
+      {name:'Alzate laterali manubri', reps:'10-15'},
+      {name:'Curl bicipiti manubri', reps:'10-12', ss:true},
+      {name:'Push-up presa stretta', reps:'max', ss:true},
+      {name:'Leg curl seduto (macchina)', reps:'8-12'},
+      {name:'Leg extension (macchina)', reps:'8-12'}
+    ]},
+    tb2: { label:'Total Body 2', exercises:[
+      {name:'Push-up declinati', reps:'max'},
+      {name:'Chin-ups (presa stretta parallela)', reps:'max'},
+      {name:'Alzate frontali manubri da seduto', reps:'10-15'},
+      {name:'Pull-up strette ai cavi', reps:'max', ss:true},
+      {name:'Dip tricipiti su panca', reps:'max', ss:true},
+      {name:'Leg press 45°', reps:'8-12'},
+      {name:'Hyperextension', reps:'max'}
+    ]},
+    tb3: { label:'Total Body 3', exercises:[
+      {name:'Push-up con battito di mani', reps:'max'},
+      {name:'Chin-ups (presa stretta parallela)', reps:'max'},
+      {name:'Handstand push-up', reps:'max'},
+      {name:'Curl ai cavi presa stretta', reps:'10-15', ss:true},
+      {name:'Push-up a diamante', reps:'max', ss:true},
+      {name:'Leg curl seduto (macchina)', reps:'8-12'},
+      {name:'Abduzione anca seduto (macchina)', reps:'10-15'}
+    ]}
+  };
+
+  // per-100g/ml nutrition, from le etichette del piano del nutrizionista
+  var FOOD_DB = {
+    albume:            {label:'Albume', cat:'proteina', unit:'g', per100:{kcal:52,  p:11,  c:0.7, g:0.2}},
+    uovo_intero:       {label:'Uovo intero', cat:'proteina', unit:'pz', fixed:true},
+    farina_avena:      {label:'Farina d’avena', cat:'carbo', unit:'g', per100:{kcal:390, p:14,  c:67,  g:7.6}},
+    mirtilli:          {label:'Mirtilli', cat:'frutta', unit:'g', per100:{kcal:57,  p:0.7, c:14,  g:0.3}},
+    cioccolato:        {label:'Cioccolato fondente 70%', cat:'grasso', unit:'g', per100:{kcal:533, p:8,   c:36,  g:42}},
+    whey:              {label:'Whey isolate', cat:'proteina', unit:'g', per100:{kcal:370, p:90,  c:2,   g:1}},
+    ananas:            {label:'Ananas', cat:'frutta', unit:'g', per100:{kcal:50,  p:0.5, c:13,  g:0.1}},
+    riso_basmati:      {label:'Riso basmati (crudo)', cat:'carbo', unit:'g', per100:{kcal:350, p:7.5, c:78,  g:0.6}},
+    olio_evo:          {label:'Olio extravergine d’oliva', cat:'grasso', unit:'g', per100:{kcal:880, p:0,   c:0,   g:100}},
+    broccoli:          {label:'Broccoli', cat:'verdura', unit:'g', per100:{kcal:34,  p:2.8, c:6.6, g:0.4}},
+    petto_pollo:       {label:'Petto di pollo', cat:'proteina', unit:'g', per100:{kcal:110, p:23.3,c:0,   g:1.9}},
+    yogurt_magro:      {label:'Yogurt magro', cat:'proteina', unit:'g', per100:{kcal:36,  p:3.3, c:4,   g:0.9}},
+    zucchine:          {label:'Zucchine', cat:'verdura', unit:'g', per100:{kcal:17,  p:1.2, c:3.1, g:0.3}},
+    petto_tacchino:    {label:'Petto di tacchino', cat:'proteina', unit:'g', per100:{kcal:107, p:24.2,c:0,   g:0.67}},
+    latte_avena:       {label:'Latte di avena', cat:'carbo', unit:'ml', per100:{kcal:47,  p:1,   c:7.5, g:1.5}},
+    burro_arachidi:    {label:'Burro di arachidi', cat:'grasso', unit:'g', per100:{kcal:590, p:25,  c:22,  g:51}},
+    banana:            {label:'Banana', cat:'frutta', unit:'g', per100:{kcal:89,  p:1.1, c:23,  g:0.3}},
+    pasta_bianca:      {label:'Pasta bianca (cruda)', cat:'carbo', unit:'g', per100:{kcal:371, p:13,  c:75,  g:1.5}},
+    carne_macinata:    {label:'Carne macinata magra 95/5', cat:'proteina', unit:'g', per100:{kcal:137, p:21.4,c:0,   g:5.6}},
+    bresaola:          {label:'Bresaola', cat:'proteina', unit:'g', per100:{kcal:151, p:33.1,c:0,   g:2.6}}
+  };
+  var CAT_KEY = {proteina:'p', carbo:'c', grasso:'g', frutta:'c', verdura:null};
+  var CAT_LABEL = {proteina:'proteine', carbo:'carboidrati', grasso:'grassi', frutta:'carboidrati', verdura:'peso'};
+
+  var DIET1 = { label:'Giorno 1', meals:[
+    {name:'Colazione', items:[
+      {food:'albume', amount:200}, {food:'uovo_intero', amount:1},
+      {food:'farina_avena', amount:50}, {food:'mirtilli', amount:100}, {food:'cioccolato', amount:15}
+    ]},
+    {name:'Spuntino', items:[ {food:'whey', amount:40}, {food:'ananas', amount:100} ]},
+    {name:'Pranzo', items:[
+      {food:'riso_basmati', amount:100}, {food:'olio_evo', amount:10}, {food:'broccoli', amount:100}, {food:'petto_pollo', amount:200}
+    ]},
+    {name:'Spuntino', items:[ {food:'yogurt_magro', amount:100}, {food:'cioccolato', amount:25} ]},
+    {name:'Cena', items:[
+      {food:'riso_basmati', amount:100}, {food:'olio_evo', amount:10}, {food:'zucchine', amount:100}, {food:'petto_tacchino', amount:150}
+    ]}
+  ]};
+  var DIET2 = { label:'Giorno 2', meals:[
+    {name:'Colazione', items:[
+      {food:'latte_avena', amount:250}, {food:'farina_avena', amount:50}, {food:'whey', amount:20}, {food:'burro_arachidi', amount:10}
+    ]},
+    {name:'Spuntino', items:[ {food:'whey', amount:40}, {food:'banana', amount:100} ]},
+    {name:'Pranzo', items:[
+      {food:'pasta_bianca', amount:125}, {food:'carne_macinata', amount:170}, {food:'olio_evo', amount:10}, {food:'zucchine', amount:100}
+    ]},
+    {name:'Spuntino', items:[ {food:'bresaola', amount:70} ]},
+    {name:'Cena', items:[
+      {food:'pasta_bianca', amount:125}, {food:'carne_macinata', amount:170}, {food:'olio_evo', amount:10}, {food:'zucchine', amount:100}
+    ]}
+  ]};
+
+  var dietSubs = {};
+  try{ dietSubs = JSON.parse(localStorage.getItem('diet-subs')||'{}'); }catch(e){ dietSubs = {}; }
+  function saveDietSubs(){ try{ localStorage.setItem('diet-subs', JSON.stringify(dietSubs)); }catch(e){} }
+
+  function computeAmount(origFood, origAmount, newFoodKey){
+    var origDef = FOOD_DB[origFood], newDef = FOOD_DB[newFoodKey];
+    if(origDef.cat === 'verdura') return origAmount;
+    var key = CAT_KEY[origDef.cat];
+    var origMacro = origDef.per100[key] * origAmount/100;
+    var newPer100 = newDef.per100[key];
+    if(!newPer100) return origAmount;
+    return Math.round(origMacro/newPer100*100/5)*5;
+  }
+
+  function renderDietDay(containerId, macroId, diet, dayKey){
+    var container = document.getElementById(containerId);
+    var html = '';
+    var totals = {kcal:0,p:0,c:0,g:0};
+    diet.meals.forEach(function(meal, mi){
+      html += '<div class="meal-block"><div class="meal-name">'+meal.name+'</div>';
+      meal.items.forEach(function(item, ii){
+        var slot = dayKey+'-'+mi+'-'+ii;
+        var def = FOOD_DB[item.food];
+        var chosenFood = (dietSubs[slot]&&dietSubs[slot].food) || item.food;
+        var chosenDef = FOOD_DB[chosenFood];
+        var amount = chosenFood===item.food ? item.amount : computeAmount(item.food, item.amount, chosenFood);
+        if(chosenDef.per100){
+          totals.kcal += chosenDef.per100.kcal*amount/100;
+          totals.p += chosenDef.per100.p*amount/100;
+          totals.c += chosenDef.per100.c*amount/100;
+          totals.g += chosenDef.per100.g*amount/100;
+        }
+        var unitLabel = def.unit==='pz' ? '' : def.unit;
+        html += '<div class="food-item'+(chosenFood!==item.food?' swapped':'')+'" data-slot="'+slot+'">';
+        html += '<span class="fi-name">'+chosenDef.label+'</span>';
+        html += '<span class="fi-amount">'+amount+unitLabel+'</span>';
+        if(def.fixed){
+          html += '<span class="fixed-tag">dose fissa</span>';
+        } else {
+          if(item.food==='broccoli' && chosenFood==='broccoli'){ html += '<span class="fixed-tag" style="color:var(--danger)">non gradito</span>'; }
+          html += '<button class="swap-btn" data-slot="'+slot+'" data-orig="'+item.food+'" data-origamt="'+item.amount+'" title="Sostituisci">⇆</button>';
+        }
+        html += '</div>';
+        if(!def.fixed){
+          var origDef = FOOD_DB[item.food];
+          var alts = Object.keys(FOOD_DB).filter(function(k){ return FOOD_DB[k].cat===origDef.cat && !FOOD_DB[k].fixed; });
+          html += '<select class="swap-select" data-slot-select="'+slot+'">';
+          alts.forEach(function(k){
+            html += '<option value="'+k+'"'+(k===chosenFood?' selected':'')+'>'+FOOD_DB[k].label+'</option>';
+          });
+          html += '</select>';
+        }
+      });
+      html += '</div>';
+    });
+    container.innerHTML = html;
+    document.getElementById(macroId).innerHTML =
+      '<div class="macro total">'+Math.round(totals.kcal)+' kcal</div>'+
+      '<div class="macro">P '+totals.p.toFixed(1)+'g</div>'+
+      '<div class="macro">C '+totals.c.toFixed(1)+'g</div>'+
+      '<div class="macro">G '+totals.g.toFixed(1)+'g</div>';
+
+    container.querySelectorAll('.swap-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var sel = container.querySelector('[data-slot-select="'+btn.dataset.slot+'"]');
+        sel.classList.toggle('open');
+      });
+    });
+    container.querySelectorAll('.swap-select').forEach(function(sel){
+      sel.addEventListener('change', function(){
+        var slot = sel.dataset.slotSelect;
+        var newFood = sel.value;
+        var parts = slot.split('-'); var mi=+parts[1], ii=+parts[2];
+        var origItem = diet.meals[mi].items[ii];
+        if(newFood === origItem.food){ delete dietSubs[slot]; }
+        else{ dietSubs[slot] = {food:newFood}; }
+        saveDietSubs();
+        renderDietDay(containerId, macroId, diet, dayKey);
+      });
+    });
+  }
+
+  var SUPP_DAILY = [
+    ['Omega 3 (alga, vegano)','Mattina · cuore, infiammazione, recupero'],
+    ['Multivitaminico','Mattina · copre carenze su un piano a schema fisso'],
+    ['Cromo picolinato','Post pranzo e cena · sensibilità insulinica'],
+    ['Acido alfa lipoico','Post pranzo e cena · antiossidante, metabolismo zuccheri']
+  ];
+  var SUPP_PESI = [
+    ['Durante','7/800ml acqua + 10g EAA + 2g sale'],
+    ['Post allenamento','50g cereali Nesquik + 30g proteine isolate']
+  ];
+  var SUPP_BICI = [
+    ['Durante uscita','20g ciclodestrine + 15g EAA + 2g sale + 1.5L acqua'],
+    ['Post allenamento','40g ciclodestrine + 20g proteine isolate']
+  ];
+
+  var BIKE_WORKOUTS = [
+    { name:'Fartlek', duration:'100 min', difficulty:'Media',
+      desc:'"Gioco di velocità": a differenza delle ripetute a tempi fissi, alterna fasi a intensità diverse in modo più libero, simulando i cambi di ritmo di una gara o un\'uscita impegnativa.',
+      benefits:['Migliora la soglia anaerobica','Aumenta la capacità di recupero dopo uno sforzo intenso','Sviluppa resistenza e potenza insieme','Simula i cambi di ritmo tipici delle gare','Riduce la monotonia degli allenamenti'],
+      blocks:[
+        {name:'Riscaldamento', detail:'30 min · Z2 · 1×'},
+        {name:'Ripetuta in salita', detail:'5 min · Z4 · 4× · rec 10 min'},
+        {name:'Defaticamento', detail:'20 min · Z2 · 1×'}
+      ]
+    },
+    { name:'Allenamento in pianura', duration:'90 min', difficulty:'Media',
+      desc:'Pensato per chi non può fare salite ma vuole comunque lavorare sulla soglia anaerobica: ripetute in pianura in Z3.',
+      benefits:['Migliora la soglia anaerobica anche senza dislivello disponibile'],
+      blocks:[
+        {name:'Riscaldamento', detail:'20 min · Z2 · 1×'},
+        {name:'Ripetuta in pianura', detail:'10 min · Z3 · 3× · rec 10 min'},
+        {name:'Defaticamento', detail:'20 min · Z2 · 1×'}
+      ]
+    },
+    { name:'Allenamento con 2-3 salite', duration:'150 min', difficulty:'Media',
+      desc:'Allenamento di fondo nelle giornate con più volume e più salite: consente di gestire al meglio la sessione di fondo e interpretare le salite per migliorare la soglia anaerobica senza lavorare in zone di alta intensità.',
+      benefits:[],
+      blocks:[
+        {name:'Riscaldamento', detail:'30 min · Z2 · 1×'},
+        {name:'Salite', detail:'20 min · Z3 · 3× · rec 20 min'},
+        {name:'Recupero tra le salite', detail:'20 min · Z2 · 1×'}
+      ]
+    },
+    { name:'Forza-resistenza pro', duration:'104 min', difficulty:'Alta',
+      desc:'Da fare dopo l\'allenamento di forza: unisce i due fattori principali, resistenza e forza. Ripetute in salita con pendenza massima 8-10%, con variazioni di cadenza di pedalata, mantenendo zona 3.',
+      benefits:[],
+      blocks:[
+        {name:'Riscaldamento', detail:'30 min · Z2 · 1×'},
+        {name:'Ripetuta in salita', detail:'8 min · Z3 · 3× · rec 10 min'},
+        {name:'Defaticamento', detail:'30 min · Z2 · 1×'}
+      ]
+    },
+    { name:'Forza-resistenza', duration:'57 min', difficulty:'Media',
+      desc:'Dopo l\'allenamento di forza: lavoro che unisce resistenza e forza. Ripetute in salita con pendenza massima 8-10%, con variazioni di cadenza di pedalata, mantenendo zona 3. Versione più breve della "Forza-resistenza pro".',
+      benefits:[],
+      blocks:[
+        {name:'Riscaldamento', detail:'20 min · Z2 · 1×'},
+        {name:'Ripetuta in salita', detail:'6 min · Z3 · 2× · rec 5 min'},
+        {name:'Defaticamento', detail:'20 min · Z2 · 1×'}
+      ]
+    },
+    { name:'Allenamento di forza pro', duration:'135 min', difficulty:'Alta',
+      desc:'Allenamento per migliorare la forza, svolto in salita con pendenza massima 10%: fase iniziale di riscaldamento, poi lavoro di forza in salita in blocchi.',
+      benefits:[],
+      blocks:[
+        {name:'Riscaldamento', detail:'30 min · Z2 · 1× · rec 10 min'},
+        {name:'Ripetuta in pianura', detail:'5 min · Z3 · 1× · rec 10 min'},
+        {name:'SFR salita (ripetuta in salita)', detail:'5 min · Z3 · 3× · rec 5 min'},
+        {name:'Recupero', detail:'20 min · Z2 · 1×'},
+        {name:'SFR salita', detail:'5 min · Z3 · 3× · rec 5 min'},
+        {name:'Defaticamento', detail:'30 min · Z2 · 1×'}
+      ]
+    },
+    { name:'Allenamento di forza (SFR)', duration:'85 min', difficulty:'Media',
+      desc:'Allenamento per migliorare la forza, pensato per chi durante la settimana non ha molto tempo a disposizione: breve allenamento per migliorare la potenza (forza). Da eseguire una volta a settimana, salita non oltre il 10% di pendenza.',
+      benefits:[],
+      blocks:[
+        {name:'Riscaldamento', detail:'20 min · Z2 · 1×'},
+        {name:'Ripetuta in salita', detail:'3 min · Z3 · 5× · rec 5 min'},
+        {name:'Defaticamento', detail:'30 min · Z2 · 1×'}
+      ]
+    }
+  ];
+
+  var PHYSIO = [
+    {name:'Trapezio inferiore', detail:'Panca 45/60° con 2 manubri da 1kg — 2×6'},
+    {name:'Extrarotazione', detail:'Gomito fianco 2×12/15 · gomito 90° 1×20s iso + 1×10 · panca elastico 2×8'},
+    {name:'Intrarotazione', detail:'Gomito fianco 2×12/15 · gomito 90° 2×8/10'},
+    {name:'Anca', detail:'Rotazione interna elastico 2×15 · esterna su rialzo 2×10 · antiversione elastico 2×20s/gamba'},
+    {name:'Ginocchio/caviglia', detail:'Squat a muro spostamento laterale 3×10 · split squat iso + calf raises 2×8'},
+    {name:'Mobilità alluce', detail:'Flesso-estensione 2/3 min con trigger point'}
+  ];
+
+  // ---------- tabs ----------
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabBtns.forEach(function(b){ b.setAttribute('aria-selected', b===btn ? 'true':'false'); });
+      document.querySelectorAll('.panel').forEach(function(p){ p.hidden = true; });
+      document.getElementById('panel-'+btn.dataset.tab).hidden = false;
+    });
+  });
+
+  // ---------- render diet ----------
+  renderDietDay('diet1','macro1',DIET1,'d1');
+  renderDietDay('diet2','macro2',DIET2,'d2');
+
+  // ---------- render supplements ----------
+  function renderSupp(id, rows){
+    document.getElementById(id).innerHTML = rows.map(function(r){
+      return '<tr><td class="sname">'+r[0]+'</td><td class="swhat">'+r[1]+'</td></tr>';
+    }).join('');
+  }
+  renderSupp('supp-daily', SUPP_DAILY);
+  renderSupp('supp-pesi', SUPP_PESI);
+  renderSupp('supp-bici', SUPP_BICI);
+
+  // ---------- render bike workouts ----------
+  document.getElementById('bike-workouts').innerHTML = BIKE_WORKOUTS.map(function(w){
+    var html = '<div class="bike-wk">';
+    html += '<div class="bike-wk-head"><span class="bike-wk-name">'+w.name+'</span><span class="bike-wk-meta">'+w.duration+' · '+w.difficulty+'</span></div>';
+    html += '<div class="bike-wk-desc">'+w.desc+'</div>';
+    if(w.benefits.length){ html += '<ul class="bike-wk-benefits">'+w.benefits.map(function(b){ return '<li>'+b+'</li>'; }).join('')+'</ul>'; }
+    html += '<div class="bike-wk-blocks">'+w.blocks.map(function(b){
+      return '<div class="bike-wk-block"><span class="bn">'+b.name+'</span><span class="bd">'+b.detail+'</span></div>';
+    }).join('')+'</div>';
+    html += '</div>';
+    return html;
+  }).join('');
+
+  // ---------- render physio checklist ----------
+  var physioList = document.getElementById('physio-list');
+  physioList.innerHTML = PHYSIO.map(function(p,i){
+    return '<label class="check-item"><input type="checkbox" data-physio="'+i+'">'+
+      '<span><span class="ci-name">'+p.name+'</span><span class="ci-detail">'+p.detail+'</span></span></label>';
+  }).join('');
+
+  // ---------- workout day picker + exercise rendering ----------
+  var currentDay = 'tb1';
+  var dayPicker = document.getElementById('day-picker');
+  dayPicker.addEventListener('click', function(e){
+    var btn = e.target.closest('.pill');
+    if(!btn) return;
+    currentDay = btn.dataset.day;
+    dayPicker.querySelectorAll('.pill').forEach(function(p){ p.setAttribute('aria-pressed', p===btn?'true':'false'); });
+    renderExercises();
+    document.getElementById('save-status').textContent = '';
+  });
+
+  function renderExercises(){
+    var day = WORKOUTS[currentDay];
+    var html = '';
+    day.exercises.forEach(function(ex, exi){
+      html += '<div class="exercise" data-ex="'+exi+'">';
+      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+ex.name+'</span><span class="ex-target">3× '+ex.reps+'</span></div>';
+      html += '<div class="set-grid"><span></span><span class="col-lbl">kg</span><span class="col-lbl">reps</span><span class="col-lbl">✓</span></div>';
+      for(var s=1;s<=3;s++){
+        html += '<div class="set-grid">'+
+          '<span class="setnum">'+s+'</span>'+
+          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+s+'">'+
+          '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+s+'">'+
+          '<input type="checkbox" class="check" data-field="done" data-set="'+s+'">'+
+        '</div>';
+      }
+      html += '</div>';
+    });
+    document.getElementById('exercise-list').innerHTML = html;
+  }
+  renderExercises();
+
+  function collectSession(){
+    var day = WORKOUTS[currentDay];
+    var exList = document.querySelectorAll('#exercise-list .exercise');
+    var exercises = [];
+    exList.forEach(function(exEl, i){
+      var sets = [];
+      exEl.querySelectorAll('.set-grid').forEach(function(row){
+        if(row.querySelector('.setnum')){
+          var w = row.querySelector('[data-field=weight]').value;
+          var r = row.querySelector('[data-field=reps]').value;
+          var d = row.querySelector('[data-field=done]').checked;
+          if(w || r || d){ sets.push({weight:w?parseFloat(w):null, reps:r?parseInt(r,10):null, done:!!d}); }
+        }
+      });
+      if(sets.length){ exercises.push({name:day.exercises[i].name, sets:sets}); }
+    });
+    return exercises;
+  }
+
+  // ---------- db wiring ----------
+  var db=null, userCap=null, uid=null;
+  function fmtDate(iso){
+    var d = new Date(iso+'T00:00:00');
+    return d.toLocaleDateString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric'});
+  }
+
+  function loadSessionHistory(){
+    var el = document.getElementById('session-history');
+    if(!db){ el.innerHTML = '<div class="empty">Salvataggio non disponibile in questa vista.</div>'; return; }
+    db.collection('sessions').orderBy('date','desc').limit(8).get().then(function(qs){
+      if(qs.empty){ el.innerHTML = '<div class="empty">Nessun allenamento registrato ancora.</div>'; return; }
+      el.innerHTML = qs.docs.map(function(doc){
+        var d = doc.data();
+        return '<div class="history-item"><span>'+ (d.dayLabel||d.day) +' · '+ (d.exercises?d.exercises.length:0) +' esercizi</span><span class="d">'+fmtDate(d.date)+'</span></div>';
+      }).join('');
+    }).catch(function(){ el.innerHTML = '<div class="empty">Impossibile caricare lo storico.</div>'; });
+  }
+
+  function loadWeightHistory(){
+    var el = document.getElementById('bw-history');
+    if(!db){ el.innerHTML=''; return; }
+    db.collection('bodyweight').orderBy('date','desc').limit(15).get().then(function(qs){
+      if(qs.empty){ el.innerHTML = '<tr><td colspan="2" class="empty">Nessun peso registrato ancora.</td></tr>'; return; }
+      el.innerHTML = qs.docs.map(function(doc){
+        var d = doc.data();
+        return '<tr><td>'+fmtDate(d.date)+'</td><td>'+d.weight+' kg</td></tr>';
+      }).join('');
+    }).catch(function(){ el.innerHTML = '<tr><td colspan="2" class="empty">Impossibile caricare.</td></tr>'; });
+  }
+
+  document.getElementById('save-session').addEventListener('click', function(){
+    var status = document.getElementById('save-status');
+    if(!db){ status.textContent = 'Salvataggio non disponibile in questa vista.'; return; }
+    var exercises = collectSession();
+    if(!exercises.length){ status.textContent = 'Segna almeno una serie prima di salvare.'; return; }
+    status.textContent = 'Salvataggio...';
+    db.collection('sessions').add({
+      date: todayISO,
+      day: currentDay,
+      dayLabel: WORKOUTS[currentDay].label,
+      exercises: exercises
+    }).then(function(){
+      status.textContent = 'Allenamento salvato.';
+      status.classList.add('ok');
+      loadSessionHistory();
+    }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
+  });
+
+  document.getElementById('save-physio').addEventListener('click', function(){
+    var status = document.getElementById('physio-status');
+    if(!db){ status.textContent = 'Salvataggio non disponibile in questa vista.'; return; }
+    var done = [];
+    physioList.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ if(cb.checked) done.push(PHYSIO[i].name); });
+    if(!done.length){ status.textContent = 'Segna almeno un esercizio prima di salvare.'; return; }
+    status.textContent = 'Salvataggio...';
+    db.doc('physio/'+todayISO).set({ date: todayISO, done: done }).then(function(){
+      status.textContent = 'Sessione fisio registrata.';
+      status.classList.add('ok');
+    }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
+  });
+
+  document.getElementById('save-weight').addEventListener('click', function(){
+    var status = document.getElementById('weight-status');
+    var date = document.getElementById('bw-date').value || todayISO;
+    var val = document.getElementById('bw-value').value;
+    if(!db){ status.textContent = 'Salvataggio non disponibile in questa vista.'; return; }
+    if(!val){ status.textContent = 'Inserisci un peso.'; return; }
+    status.textContent = 'Salvataggio...';
+    db.collection('bodyweight').add({ date: date, weight: parseFloat(val) }).then(function(){
+      status.textContent = 'Peso salvato.';
+      status.classList.add('ok');
+      document.getElementById('bw-value').value = '';
+      loadWeightHistory();
+    }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
+  });
+
+  function boot(){
+    var cfg = window.FIREBASE_CONFIG;
+    if(!cfg || !cfg.apiKey || cfg.apiKey === 'YOUR_API_KEY'){
+      document.getElementById('save-status').textContent = 'Firebase non configurato (vedi README).';
+      loadSessionHistory(); loadWeightHistory();
+      return;
+    }
+    try{
+      firebase.initializeApp(cfg);
+      db = firebase.firestore();
+    }catch(e){}
+    loadSessionHistory();
+    loadWeightHistory();
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
