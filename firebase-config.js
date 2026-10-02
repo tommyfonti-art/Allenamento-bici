@@ -1,11 +1,9 @@
-// Incolla qui la configurazione del tuo progetto Firebase.
-// La trovi su: console.firebase.google.com → Impostazioni progetto → Generale → Le tue app → Web (icona </>)
-// Finché resta con questi valori finti, l'app funziona ma NON salva allenamenti/peso/fisio.
+// Configurazione del progetto Firebase "allenamento-bici".
 window.FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx"
+  apiKey: "AIzaSyCJnf9FhHt_FlVmO6uopSVIVVlt76R-NEg",
+  authDomain: "allenamento-bici.firebaseapp.com",
+  projectId: "allenamento-bici",
+  storageBucket: "allenamento-bici.firebasestorage.app",
+  messagingSenderId: "314966613405",
+  appId: "1:314966613405:web:9f8b2a962ade56c526e374"
 };
