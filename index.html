@@ -156,6 +156,8 @@ button{font:inherit; cursor:pointer;}
 .supp-table .swhat{color:var(--muted); font-size:12.5px;}
 
 .checklist{display:flex; flex-direction:column; gap:8px;}
+.ci-group{display:flex; flex-direction:column; gap:6px; margin-bottom:6px;}
+.ci-group-name{font-family:'Oswald',system-ui,sans-serif; font-size:14px; letter-spacing:.02em; color:var(--accent); margin-top:6px;}
 .check-item{display:flex; align-items:flex-start; gap:10px; background:var(--surface-2); border-radius:10px; padding:10px 12px;}
 .check-item input{width:20px; height:20px; margin-top:1px; accent-color:var(--success); flex:0 0 auto;}
 .check-item .ci-name{font-weight:600; font-size:13.5px;}
@@ -626,13 +628,33 @@ button{font:inherit; cursor:pointer;}
   ];
 
   var PHYSIO = [
-    {name:'Trapezio inferiore', detail:'Panca 45/60° con 2 manubri da 1kg — 2×6'},
-    {name:'Extrarotazione', detail:'Gomito fianco 2×12/15 · gomito 90° 1×20s iso + 1×10 · panca elastico 2×8'},
-    {name:'Intrarotazione', detail:'Gomito fianco 2×12/15 · gomito 90° 2×8/10'},
-    {name:'Anca', detail:'Rotazione interna elastico 2×15 · esterna su rialzo 2×10 · antiversione elastico 2×20s/gamba'},
-    {name:'Ginocchio/caviglia', detail:'Squat a muro spostamento laterale 3×10 · split squat iso + calf raises 2×8'},
-    {name:'Mobilità alluce', detail:'Flesso-estensione 2/3 min con trigger point'}
+    {name:'Trapezio inferiore', items:[
+      {name:'Panca 45/60° con 2 manubri da 1 kg', detail:'2×6'}
+    ]},
+    {name:'Extrarotazione', items:[
+      {name:'Gomito al fianco', detail:'2×12/15'},
+      {name:'Gomito a 90°', detail:'1×20 secondi isometrico + 1×10'},
+      {name:'Panca con elastico', detail:'2×8'}
+    ]},
+    {name:'Intrarotazione', items:[
+      {name:'Gomito al fianco', detail:'2×12/15'},
+      {name:'Gomito a 90°', detail:'2×8/10'}
+    ]},
+    {name:'Anca', items:[
+      {name:'Rotazione interna con elastico', detail:'2×15'},
+      {name:'Rotazione esterna su rialzo', detail:'2×10'},
+      {name:'Antiversione con elastico', detail:'2×20 secondi per gamba'}
+    ]},
+    {name:'Ginocchio/caviglia', items:[
+      {name:'Squat a muro con spostamento laterale', detail:'3×10'},
+      {name:'Split squat isometrico e alzate sulle punte', detail:'2×8'}
+    ]},
+    {name:'Mobilità alluce', items:[
+      {name:'Flesso-estensione con trigger point', detail:'2/3 minuti'}
+    ]}
   ];
+  var PHYSIO_FLAT = [];
+  PHYSIO.forEach(function(g){ g.items.forEach(function(it){ PHYSIO_FLAT.push({label:g.name+' — '+it.name}); }); });
 
   // ---------- tabs ----------
   var tabBtns = document.querySelectorAll('.tab-btn');
@@ -830,9 +852,14 @@ button{font:inherit; cursor:pointer;}
 
   // ---------- render physio checklist ----------
   var physioList = document.getElementById('physio-list');
-  physioList.innerHTML = PHYSIO.map(function(p,i){
-    return '<label class="check-item"><input type="checkbox" data-physio="'+i+'">'+
-      '<span><span class="ci-name">'+p.name+'</span><span class="ci-detail">'+p.detail+'</span></span></label>';
+  var physioIdx = 0;
+  physioList.innerHTML = PHYSIO.map(function(g){
+    var h = '<div class="ci-group"><div class="ci-group-name">'+g.name+'</div>';
+    g.items.forEach(function(it){
+      h += '<label class="check-item"><input type="checkbox" data-physio="'+(physioIdx++)+'">'+
+        '<span><span class="ci-name">'+it.name+'</span><span class="ci-detail">'+it.detail+'</span></span></label>';
+    });
+    return h + '</div>';
   }).join('');
 
   // ---------- workout day picker + exercise rendering ----------
@@ -940,7 +967,7 @@ button{font:inherit; cursor:pointer;}
     var status = document.getElementById('physio-status');
     if(!db){ status.textContent = 'Salvataggio non disponibile in questa vista.'; return; }
     var done = [];
-    physioList.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ if(cb.checked) done.push(PHYSIO[i].name); });
+    physioList.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ if(cb.checked) done.push(PHYSIO_FLAT[i].label); });
     if(!done.length){ status.textContent = 'Segna almeno un esercizio prima di salvare.'; return; }
     status.textContent = 'Salvataggio...';
     db.doc('physio/'+todayISO).set({ date: todayISO, done: done }).then(function(){
