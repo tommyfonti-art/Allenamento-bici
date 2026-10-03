@@ -123,6 +123,15 @@ button{font:inherit; cursor:pointer;}
 .history-item{display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-top:1px solid var(--border); font-size:13px;}
 .history-item:first-child{border-top:none;}
 .history-item .d{font-family:'IBM Plex Mono',monospace; color:var(--muted);}
+.hist{border-top:1px solid var(--border); font-size:13px;}
+.hist:first-child{border-top:none;}
+.hist summary{display:flex; justify-content:space-between; align-items:center; padding:10px 0; cursor:pointer; list-style:none;}
+.hist summary::-webkit-details-marker{display:none;}
+.hist summary .d{font-family:'IBM Plex Mono',monospace; color:var(--muted);}
+.hist-body{padding:0 0 10px;}
+.hist-ex{padding:5px 0;}
+.hist-ex .hn{display:block; font-weight:600;}
+.hist-ex .hs{display:block; font-family:'IBM Plex Mono',monospace; color:var(--muted); font-size:12px; line-height:1.6;}
 
 .sel{flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 8px; font-size:14px;}
 .pasto-res{background:var(--surface-2); border-radius:10px; padding:10px 12px; font-size:14px;}
@@ -953,11 +962,17 @@ button{font:inherit; cursor:pointer;}
   function loadSessionHistory(){
     var el = document.getElementById('session-history');
     if(!db){ el.innerHTML = '<div class="empty">Salvataggio non disponibile in questa vista.</div>'; return; }
-    db.collection('sessions').orderBy('date','desc').limit(8).get().then(function(qs){
+    db.collection('sessions').orderBy('date','desc').limit(20).get().then(function(qs){
       if(qs.empty){ el.innerHTML = '<div class="empty">Nessun allenamento registrato ancora.</div>'; return; }
-      el.innerHTML = qs.docs.map(function(doc){
+      el.innerHTML = qs.docs.map(function(doc, idx){
         var d = doc.data();
-        return '<div class="history-item"><span>'+ (d.dayLabel||d.day) +' · '+ (d.exercises?d.exercises.length:0) +' esercizi</span><span class="d">'+fmtDate(d.date)+'</span></div>';
+        var body = (d.exercises || []).map(function(ex){
+          var sets = (ex.sets || []).map(function(st){
+            return (st.weight != null ? st.weight + ' kg' : '—') + ' × ' + (st.reps != null ? st.reps : '—') + (st.done ? ' ✓' : '');
+          }).join('  ·  ');
+          return '<div class="hist-ex"><span class="hn">'+ex.name+'</span><span class="hs">'+sets+'</span></div>';
+        }).join('');
+        return '<details class="hist"'+(idx===0?' open':'')+'><summary><span>'+ (d.dayLabel||d.day) +' · '+ (d.exercises?d.exercises.length:0) +' esercizi</span><span class="d">'+fmtDate(d.date)+'</span></summary><div class="hist-body">'+body+'</div></details>';
       }).join('');
     }).catch(function(){ el.innerHTML = '<div class="empty">Impossibile caricare lo storico.</div>'; });
   }
