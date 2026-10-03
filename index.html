@@ -124,6 +124,10 @@ button{font:inherit; cursor:pointer;}
 .history-item:first-child{border-top:none;}
 .history-item .d{font-family:'IBM Plex Mono',monospace; color:var(--muted);}
 
+.sel{flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 8px; font-size:14px;}
+.pasto-res{background:var(--surface-2); border-radius:10px; padding:10px 12px; font-size:14px;}
+.pasto-res .riga{padding:3px 0;}
+.pasto-res .nota{font-size:12.5px; color:var(--muted); margin-top:6px;}
 .opt{border-left:3px solid var(--border); padding:4px 0 4px 10px; margin:6px 0; font-size:13.5px;}
 .opt-t{display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-2); font-weight:700; margin-bottom:2px;}
 .meal-ora{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); font-weight:500; margin-left:6px;}
@@ -266,6 +270,17 @@ button{font:inherit; cursor:pointer;}
         <button class="pill" data-claude="bici" aria-pressed="false">Bici</button>
       </div>
       <div class="note" id="claude-intro"></div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow">Pranzo e cena a casa</div>
+      <h2>Componi il pranzo</h2>
+      <div class="desc">Scegli la proteina e il carboidrato di oggi: ti dico i grammi per lo schema selezionato qui sopra.</div>
+      <div class="input-row">
+        <select class="sel" id="claude-prot" aria-label="Proteina"></select>
+        <select class="sel" id="claude-carb" aria-label="Carboidrato"></select>
+      </div>
+      <div id="claude-pasto"></div>
     </div>
 
     <div class="card">
@@ -652,11 +667,8 @@ button{font:inherit; cursor:pointer;}
           "Latte intero 250 ml con 50 g di cereali o riso soffiato, un frutto e 1 fetta di pane e marmellata",
           "2 fette di pane e marmellata, 1 uovo strapazzato e un frutto"
         ]},
-        {name:"Pranzo", ora:"13:00", sub:"Un carboidrato, una proteina e verdura. Pollo al massimo 3 volte a settimana.", opts:[
-          "Pasta 100 g (cruda) con mozzarella 125 g, pomodoro e olio, insalata e 1 fetta di pane",
-          "Riso 100 g (crudo) con petto di pollo 150 g, verdura cotta e un filo d'olio",
-          "Pasta o riso 90 g con legumi già cotti 150 g (ceci, lenticchie o fagioli), verdura e olio",
-          "Riso 100 g con mozzarella 100 g, pomodori e olio, più 1 fetta di pane"
+        {name:"Pranzo", ora:"13:00", sub:"Scegli tu carboidrato e proteina nel riquadro «Componi il pranzo» in alto.", opts:[
+          "I grammi giusti per lo schema di oggi li trovi nel riquadro «Componi il pranzo»."
         ]},
         {name:"Merenda", ora:"16:30", opts: MERENDA_OPT},
         {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
@@ -686,11 +698,8 @@ button{font:inherit; cursor:pointer;}
           "Frullato di proteine (30 g di polvere con acqua o latte) e un frutto",
           "Yogurt intero 250 g con cereali e frutta"
         ]},
-        {name:"Pranzo", ora:"13:00", sub:"Più abbondante del riposo. Pollo al massimo 3 volte a settimana.", opts:[
-          "Pasta 120 g (cruda) con mozzarella 150 g, pomodoro e olio, insalata e 2 fette di pane",
-          "Riso 120 g (crudo) con petto di pollo 180 g, verdura cotta e olio, più 1 fetta di pane",
-          "Pasta o riso 110 g con legumi già cotti 200 g, verdura, olio e 1 fetta di pane",
-          "Riso 120 g con mozzarella 125 g e 2 uova, pomodori e olio"
+        {name:"Pranzo", ora:"13:00", sub:"Scegli tu carboidrato e proteina nel riquadro «Componi il pranzo» in alto.", opts:[
+          "I grammi giusti per lo schema di oggi li trovi nel riquadro «Componi il pranzo»."
         ]},
         {name:"Merenda", ora:"16:30, se ti sei allenato la mattina", opts: MERENDA_OPT},
         {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
@@ -715,10 +724,8 @@ button{font:inherit; cursor:pointer;}
           "Frullato di proteine (30 g di polvere) con una banana e un po' di latte",
           "Yogurt intero 250 g con cereali e frutta"
         ]},
-        {name:"Pranzo", ora:"13:00", sub:"Il pasto più grande della giornata. Pollo al massimo 3 volte a settimana.", opts:[
-          "Pasta 150 g (cruda) con mozzarella 150 g, pomodoro e olio, insalata e 2 fette di pane",
-          "Riso 150 g (crudo) con petto di pollo 180 g, verdura cotta e olio, più 2 fette di pane",
-          "Pasta o riso 140 g con legumi già cotti 200 g, verdura, olio e 2 fette di pane"
+        {name:"Pranzo", ora:"13:00", sub:"Scegli tu carboidrato e proteina nel riquadro «Componi il pranzo» in alto.", opts:[
+          "I grammi giusti per lo schema di oggi li trovi nel riquadro «Componi il pranzo»."
         ]},
         {name:"Merenda", ora:"16:30", opts: MERENDA_OPT},
         {name:"Pasto al pub", ora:"19:00", sub:"Aggiungi pane a piacere: il giorno della bici lo puoi mangiare in più.", opts: PUB_OPT},
@@ -730,9 +737,49 @@ button{font:inherit; cursor:pointer;}
     }
   };
 
-  var CLAUDE_RULES = "Pollo al massimo 3 volte a settimana (la cotoletta del pub conta). Carne rossa solo l'hamburger del pub, massimo 2 volte a settimana. Niente pesce, cavoli e broccoli. Latticini interi e cibi normali, senza versioni light. I grammi sono solo un riferimento: a occhio va bene, niente pesate maniacali. Acqua a sete, di più nei giorni di bici. Creatina e proteine in polvere come già fai. Il peso lo guardi ogni tanto nella scheda Progressi: se in tre settimane non si muove e vuoi salire, aggiungi pane o pasta ai pasti principali.";
+  var PASTO = {
+    prot: {
+      pollo:      {label:"Petto di pollo", g:{riposo:150, palestra:180, bici:200}, unit:"g", nota:"Pollo al massimo 3 volte a settimana."},
+      mozzarella: {label:"Mozzarella", g:{riposo:125, palestra:150, bici:175}, unit:"g", nota:"Va bene quella normale."},
+      uova:       {label:"Uova", g:{riposo:2, palestra:3, bici:3}, unit:"uova", nota:""},
+      tonno:      {label:"Tonno (sgocciolato)", g:{riposo:100, palestra:120, bici:140}, unit:"g", nota:"Tonno una volta a settimana."},
+      legumi:     {label:"Legumi già cotti (ceci, lenticchie, fagioli)", g:{riposo:150, palestra:200, bici:200}, unit:"g", fattore:0.9, nota:"I legumi hanno già carboidrati, quindi la pasta o il riso sono un po' meno."}
+    },
+    carb: {
+      pasta: {label:"Pasta (cruda)", g:{riposo:100, palestra:120, bici:150}},
+      riso:  {label:"Riso (crudo)", g:{riposo:100, palestra:120, bici:150}},
+      pane:  {label:"Pane", g:{riposo:130, palestra:160, bici:200}}
+    },
+    olio: {riposo:"1 cucchiaio", palestra:"1 cucchiaio", bici:"1 cucchiaio e mezzo"},
+    panex: {riposo:"1 fetta", palestra:"2 fette", bici:"2 fette"}
+  };
+  var claudeKey = 'riposo';
+  var selProt = document.getElementById('claude-prot');
+  var selCarb = document.getElementById('claude-carb');
+  Object.keys(PASTO.prot).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=PASTO.prot[k].label; selProt.appendChild(o); });
+  Object.keys(PASTO.carb).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=PASTO.carb[k].label; selCarb.appendChild(o); });
+  function renderPasto(){
+    var p = PASTO.prot[selProt.value], c = PASTO.carb[selCarb.value];
+    var gc = c.g[claudeKey];
+    if(p.fattore && selCarb.value!=='pane'){ gc = Math.round(gc*p.fattore/5)*5; }
+    var h = '<div class="pasto-res">';
+    h += '<div class="riga"><b>'+c.label+':</b> '+gc+' g</div>';
+    h += '<div class="riga"><b>'+p.label+':</b> '+p.g[claudeKey]+(p.unit==='g'?' g':' '+p.unit)+'</div>';
+    h += '<div class="riga"><b>Verdura:</b> a piacere (tutte vanno bene, tranne cavoli e broccoli)</div>';
+    h += '<div class="riga"><b>Olio:</b> '+PASTO.olio[claudeKey]+'</div>';
+    if(selCarb.value!=='pane'){ h += '<div class="riga"><b>Pane:</b> '+PASTO.panex[claudeKey]+'</div>'; }
+    if(p.nota){ h += '<div class="nota">'+p.nota+'</div>'; }
+    h += '</div>';
+    document.getElementById('claude-pasto').innerHTML = h;
+  }
+  selProt.addEventListener('change', renderPasto);
+  selCarb.addEventListener('change', renderPasto);
+
+  var CLAUDE_RULES = "Pollo al massimo 3 volte a settimana (la cotoletta del pub conta). Tonno una volta a settimana. Carne rossa solo l'hamburger del pub, massimo 2 volte a settimana. Niente cavoli e broccoli. Latticini interi e cibi normali. I grammi sono solo un riferimento: a occhio va bene, niente pesate maniacali. Acqua a sete, di più nei giorni di bici. Creatina e proteine in polvere come già fai. Il peso lo guardi ogni tanto nella scheda Progressi: se in tre settimane non si muove e vuoi salire, aggiungi pane o pasta ai pasti principali.";
 
   function renderClaude(key){
+    claudeKey = key;
+    renderPasto();
     var plan = CLAUDE_PLAN[key];
     document.getElementById('claude-intro').textContent = plan.intro;
     var html = '';
