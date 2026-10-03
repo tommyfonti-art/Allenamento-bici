@@ -893,8 +893,36 @@ button{font:inherit; cursor:pointer;}
       html += '</div>';
     });
     document.getElementById('exercise-list').innerHTML = html;
+    applyLastValues();
   }
   renderExercises();
+
+  // Mostra in grigio i kg e le ripetizioni dell'ultima volta per lo stesso giorno
+  function applyLastValues(){
+    if(!db) return;
+    var dayAtCall = currentDay;
+    db.collection('sessions').orderBy('date','desc').limit(30).get().then(function(qs){
+      if(dayAtCall !== currentDay) return;
+      var last = null;
+      qs.docs.some(function(doc){
+        var d = doc.data();
+        if(d.day === dayAtCall){ last = d; return true; }
+        return false;
+      });
+      if(!last) return;
+      document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
+        var name = WORKOUTS[dayAtCall].exercises[i].name;
+        var found = (last.exercises || []).filter(function(e){ return e.name === name; })[0];
+        if(!found) return;
+        found.sets.forEach(function(st, si){
+          var w = exEl.querySelector('[data-field=weight][data-set="'+(si+1)+'"]');
+          var r = exEl.querySelector('[data-field=reps][data-set="'+(si+1)+'"]');
+          if(w && st.weight != null) w.placeholder = st.weight;
+          if(r && st.reps != null) r.placeholder = st.reps;
+        });
+      });
+    }).catch(function(){});
+  }
 
   function collectSession(){
     var day = WORKOUTS[currentDay];
@@ -960,6 +988,7 @@ button{font:inherit; cursor:pointer;}
     }).then(function(){
       status.textContent = 'Allenamento salvato.';
       status.classList.add('ok');
+      renderExercises();
       loadSessionHistory();
     }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
   });
@@ -1005,6 +1034,7 @@ button{font:inherit; cursor:pointer;}
     }catch(e){}
     loadSessionHistory();
     loadWeightHistory();
+    applyLastValues();
   }
   boot();
 })();
