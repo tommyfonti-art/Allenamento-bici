@@ -674,7 +674,7 @@ button{font:inherit; cursor:pointer;}
         {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
         {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
         {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
-          "Pasta o riso 100 g con una proteina a scelta (uova, mozzarella, legumi o pollo), verdura e 1 fetta di pane"
+          "Come a pranzo: scegli proteina e carboidrato nel riquadro «Componi il pranzo»"
         ]}
       ]
     },
@@ -705,7 +705,7 @@ button{font:inherit; cursor:pointer;}
         {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
         {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
         {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
-          "Pasta o riso 120 g con una proteina a scelta (uova, mozzarella, legumi o pollo), verdura e 2 fette di pane"
+          "Come a pranzo: scegli proteina e carboidrato nel riquadro «Componi il pranzo»"
         ]}
       ]
     },
@@ -731,7 +731,7 @@ button{font:inherit; cursor:pointer;}
         {name:"Pasto al pub", ora:"19:00", sub:"Aggiungi pane a piacere: il giorno della bici lo puoi mangiare in più.", opts: PUB_OPT},
         {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
         {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
-          "Pasta o riso 130 g con una proteina a scelta (uova, mozzarella, legumi o pollo), verdura e 2 fette di pane"
+          "Come a pranzo: scegli proteina e carboidrato nel riquadro «Componi il pranzo»"
         ]}
       ]
     }
@@ -746,12 +746,11 @@ button{font:inherit; cursor:pointer;}
       legumi:     {label:"Legumi già cotti (ceci, lenticchie, fagioli)", g:{riposo:150, palestra:200, bici:200}, unit:"g", fattore:0.9, nota:"I legumi hanno già carboidrati, quindi la pasta o il riso sono un po' meno."}
     },
     carb: {
-      pasta: {label:"Pasta (cruda)", g:{riposo:100, palestra:120, bici:150}},
-      riso:  {label:"Riso (crudo)", g:{riposo:100, palestra:120, bici:150}},
+      pasta: {label:"Pasta (cruda)", g:{riposo:120, palestra:150, bici:180}},
+      riso:  {label:"Riso (crudo)", g:{riposo:120, palestra:150, bici:180}},
       pane:  {label:"Pane", g:{riposo:130, palestra:160, bici:200}}
     },
-    olio: {riposo:"1 cucchiaio", palestra:"1 cucchiaio", bici:"1 cucchiaio e mezzo"},
-    panex: {riposo:"1 fetta", palestra:"2 fette", bici:"2 fette"}
+    olio: {riposo:"1 cucchiaio", palestra:"1 cucchiaio", bici:"1 cucchiaio e mezzo"}
   };
   var claudeKey = 'riposo';
   var selProt = document.getElementById('claude-prot');
@@ -767,7 +766,6 @@ button{font:inherit; cursor:pointer;}
     h += '<div class="riga"><b>'+p.label+':</b> '+p.g[claudeKey]+(p.unit==='g'?' g':' '+p.unit)+'</div>';
     h += '<div class="riga"><b>Verdura:</b> a piacere (tutte vanno bene, tranne cavoli e broccoli)</div>';
     h += '<div class="riga"><b>Olio:</b> '+PASTO.olio[claudeKey]+'</div>';
-    if(selCarb.value!=='pane'){ h += '<div class="riga"><b>Pane:</b> '+PASTO.panex[claudeKey]+'</div>'; }
     if(p.nota){ h += '<div class="nota">'+p.nota+'</div>'; }
     h += '</div>';
     document.getElementById('claude-pasto').innerHTML = h;
