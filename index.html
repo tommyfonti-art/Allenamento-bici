@@ -124,6 +124,10 @@ button{font:inherit; cursor:pointer;}
 .history-item:first-child{border-top:none;}
 .history-item .d{font-family:'IBM Plex Mono',monospace; color:var(--muted);}
 
+.opt{border-left:3px solid var(--border); padding:4px 0 4px 10px; margin:6px 0; font-size:13.5px;}
+.opt-t{display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-2); font-weight:700; margin-bottom:2px;}
+.meal-ora{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); font-weight:500; margin-left:6px;}
+.meal-sub{font-size:12.5px; color:var(--muted); margin:0 0 4px;}
 .macro-row{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;}
 .macro{font-family:'IBM Plex Mono',monospace; font-size:12.5px; background:var(--surface-2); border-radius:8px; padding:5px 10px;}
 .macro.total{background:var(--accent); color:var(--accent-fg); font-weight:700;}
@@ -186,7 +190,8 @@ button{font:inherit; cursor:pointer;}
     </div>
     <div class="tabs" role="tablist">
       <button class="tab-btn" role="tab" data-tab="allenamento" aria-selected="true">Allenamento</button>
-      <button class="tab-btn" role="tab" data-tab="alimentazione" aria-selected="false">Alimentazione</button>
+      <button class="tab-btn" role="tab" data-tab="alimentazione" aria-selected="false">Alimentazione Mattia Saco</button>
+      <button class="tab-btn" role="tab" data-tab="alimclaude" aria-selected="false">Alimentazione Claude</button>
       <button class="tab-btn" role="tab" data-tab="integratori" aria-selected="false">Integratori</button>
       <button class="tab-btn" role="tab" data-tab="bici" aria-selected="false">Bici</button>
       <button class="tab-btn" role="tab" data-tab="fisio" aria-selected="false">Fisio</button>
@@ -225,7 +230,7 @@ button{font:inherit; cursor:pointer;}
   <!-- ALIMENTAZIONE -->
   <section class="panel" id="panel-alimentazione" hidden>
     <div class="card">
-      <div class="eyebrow">Piano nutrizionista &middot; Obiettivo Massa &middot; 24 settimane</div>
+      <div class="eyebrow">Alimentazione Mattia Saco &middot; Piano nutrizionista &middot; Obiettivo Massa &middot; 24 settimane</div>
       <h2>Ciclo: 3 giorni Dieta 1 + 1 giorno Dieta 2</h2>
       <div class="desc">Si ripete per tutta la durata del piano.</div>
     </div>
@@ -246,6 +251,30 @@ button{font:inherit; cursor:pointer;}
     <div class="card">
       <h2>Regole generali</h2>
       <div class="desc">Pasto libero 1 ogni 7 giorni &middot; sale normale &middot; acqua minimo 3 litri al giorno.</div>
+    </div>
+  </section>
+
+  <!-- ALIMENTAZIONE CLAUDE -->
+  <section class="panel" id="panel-alimclaude" hidden>
+    <div class="card">
+      <div class="eyebrow">Piano mio &middot; cibi normali</div>
+      <h2>Tre schemi, scegli la mattina</h2>
+      <div class="desc">Riposo, palestra o bici: tocca quello di oggi. In ogni pasto scegli una sola opzione e cambia quando vuoi.</div>
+      <div class="pill-row" id="claude-day-picker">
+        <button class="pill" data-claude="riposo" aria-pressed="true">Riposo</button>
+        <button class="pill" data-claude="palestra" aria-pressed="false">Palestra</button>
+        <button class="pill" data-claude="bici" aria-pressed="false">Bici</button>
+      </div>
+      <div class="note" id="claude-intro"></div>
+    </div>
+
+    <div class="card">
+      <div id="claude-meals"></div>
+    </div>
+
+    <div class="card">
+      <h2>Regole semplici</h2>
+      <div class="desc" id="claude-rules"></div>
     </div>
   </section>
 
@@ -599,6 +628,133 @@ button{font:inherit; cursor:pointer;}
       document.getElementById('panel-'+btn.dataset.tab).hidden = false;
     });
   });
+
+  // ---------- alimentazione Claude (tre schemi) ----------
+  var PUB_OPT = [
+    "Pane, insalata e uova strapazzate (3 uova)",
+    "Hamburger con pane e insalata (massimo 2 volte a settimana, è la tua carne rossa)",
+    "Panino con la cotoletta di pollo (1 volta a settimana, vale come pollo della settimana)",
+    "Pasta o riso con mozzarella, se te li preparano"
+  ];
+  var FINE_TURNO = "Un frutto, se c'è. Se vai a letto senza mangiare, va bene così.";
+  var MERENDA_OPT = [
+    "Yogurt intero con frutta e cereali o fiocchi di mais",
+    "Pane e marmellata e un frutto",
+    "Un frutto con una manciata di frutta secca (noci o mandorle)"
+  ];
+
+  var CLAUDE_PLAN = {
+    riposo: {
+      intro: "Giorno senza allenamento. Circa 2300 calorie, indicative. I pasti forti sono il pranzo e quello al pub.",
+      meals: [
+        {name:"Colazione", ora:"8:00-9:30", opts:[
+          "Yogurt intero 200 g con frutta e 3-4 cucchiai di cereali o fiocchi di mais, più 2 fette di pane e marmellata",
+          "Latte intero 250 ml con 50 g di cereali o riso soffiato, un frutto e 1 fetta di pane e marmellata",
+          "2 fette di pane e marmellata, 1 uovo strapazzato e un frutto"
+        ]},
+        {name:"Pranzo", ora:"13:00", sub:"Un carboidrato, una proteina e verdura. Pollo al massimo 3 volte a settimana.", opts:[
+          "Pasta 100 g (cruda) con mozzarella 125 g, pomodoro e olio, insalata e 1 fetta di pane",
+          "Riso 100 g (crudo) con petto di pollo 150 g, verdura cotta e un filo d'olio",
+          "Pasta o riso 90 g con legumi già cotti 150 g (ceci, lenticchie o fagioli), verdura e olio",
+          "Riso 100 g con mozzarella 100 g, pomodori e olio, più 1 fetta di pane"
+        ]},
+        {name:"Merenda", ora:"16:30", opts: MERENDA_OPT},
+        {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
+        {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
+        {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
+          "Pasta o riso 100 g con una proteina a scelta (uova, mozzarella, legumi o pollo), verdura e 1 fetta di pane"
+        ]}
+      ]
+    },
+    palestra: {
+      intro: "Giorno di palestra. Circa 2600 calorie, indicative. Rispetto al riposo: porzioni un po' più grandi, più il frullato di proteine e qualcosa prima e dopo l'allenamento.",
+      meals: [
+        {name:"Colazione", ora:"8:00-9:30", opts:[
+          "Yogurt intero 250 g, frutta, 60 g di cereali o fiocchi di mais e 2 fette di pane e marmellata",
+          "Latte intero 300 ml con 70 g di cereali, una banana e 2 fette di pane e marmellata",
+          "3 fette di pane e marmellata, 2 uova strapazzate, un frutto e un bicchiere di latte"
+        ]},
+        {name:"Prima dell'allenamento", ora:"se ti alleni nel pomeriggio, verso le 14:30", opts:[
+          "Un frutto con 40 g di riso soffiato o fiocchi di mais",
+          "2 fette di pane e marmellata"
+        ]},
+        {name:"Dopo l'allenamento del pomeriggio", ora:"verso le 17:30", opts:[
+          "Frullato di proteine (30 g di polvere con acqua o latte) e una banana",
+          "Frullato di proteine e 30 g di riso soffiato o 2 fette di pane e marmellata"
+        ]},
+        {name:"Dopo l'allenamento della mattina", ora:"se ti alleni verso le 10, al ritorno verso le 12", opts:[
+          "Frullato di proteine (30 g di polvere con acqua o latte) e un frutto",
+          "Yogurt intero 250 g con cereali e frutta"
+        ]},
+        {name:"Pranzo", ora:"13:00", sub:"Più abbondante del riposo. Pollo al massimo 3 volte a settimana.", opts:[
+          "Pasta 120 g (cruda) con mozzarella 150 g, pomodoro e olio, insalata e 2 fette di pane",
+          "Riso 120 g (crudo) con petto di pollo 180 g, verdura cotta e olio, più 1 fetta di pane",
+          "Pasta o riso 110 g con legumi già cotti 200 g, verdura, olio e 1 fetta di pane",
+          "Riso 120 g con mozzarella 125 g e 2 uova, pomodori e olio"
+        ]},
+        {name:"Merenda", ora:"16:30, se ti sei allenato la mattina", opts: MERENDA_OPT},
+        {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
+        {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
+        {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
+          "Pasta o riso 120 g con una proteina a scelta (uova, mozzarella, legumi o pollo), verdura e 2 fette di pane"
+        ]}
+      ]
+    },
+    bici: {
+      intro: "Giorno di uscita lunga (oltre un'ora e mezza). Circa 2900 calorie, indicative. Con un'uscita più corta usa lo schema della palestra.",
+      meals: [
+        {name:"Colazione", ora:"2-3 ore prima di partire", opts:[
+          "Latte intero 300 ml con 80 g di cereali o fiocchi di mais, 3 fette di pane e marmellata e una banana",
+          "Yogurt intero 250 g con 70 g di cereali, frutta e 2 fette di pane e marmellata"
+        ]},
+        {name:"Durante l'uscita", ora:"ogni 30-40 minuti", sub:"Circa 40-60 g di carboidrati all'ora. Acqua con un pizzico di sale, circa mezzo litro all'ora.", opts:[
+          "Pane e marmellata a pezzetti, banane, barrette di cereali (una banana o una fetta di pane e marmellata valgono circa 25 g di carboidrati)",
+          "Oppure le ciclodestrine che trovi nella scheda Integratori"
+        ]},
+        {name:"Appena finito", ora:"entro un'ora", opts:[
+          "Frullato di proteine (30 g di polvere) con una banana e un po' di latte",
+          "Yogurt intero 250 g con cereali e frutta"
+        ]},
+        {name:"Pranzo", ora:"13:00", sub:"Il pasto più grande della giornata. Pollo al massimo 3 volte a settimana.", opts:[
+          "Pasta 150 g (cruda) con mozzarella 150 g, pomodoro e olio, insalata e 2 fette di pane",
+          "Riso 150 g (crudo) con petto di pollo 180 g, verdura cotta e olio, più 2 fette di pane",
+          "Pasta o riso 140 g con legumi già cotti 200 g, verdura, olio e 2 fette di pane"
+        ]},
+        {name:"Merenda", ora:"16:30", opts: MERENDA_OPT},
+        {name:"Pasto al pub", ora:"19:00", sub:"Aggiungi pane a piacere: il giorno della bici lo puoi mangiare in più.", opts: PUB_OPT},
+        {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
+        {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
+          "Pasta o riso 130 g con una proteina a scelta (uova, mozzarella, legumi o pollo), verdura e 2 fette di pane"
+        ]}
+      ]
+    }
+  };
+
+  var CLAUDE_RULES = "Pollo al massimo 3 volte a settimana (la cotoletta del pub conta). Carne rossa solo l'hamburger del pub, massimo 2 volte a settimana. Niente pesce, cavoli e broccoli. Latticini interi e cibi normali, senza versioni light. I grammi sono solo un riferimento: a occhio va bene, niente pesate maniacali. Acqua a sete, di più nei giorni di bici. Creatina e proteine in polvere come già fai. Il peso lo guardi ogni tanto nella scheda Progressi: se in tre settimane non si muove e vuoi salire, aggiungi pane o pasta ai pasti principali.";
+
+  function renderClaude(key){
+    var plan = CLAUDE_PLAN[key];
+    document.getElementById('claude-intro').textContent = plan.intro;
+    var html = '';
+    plan.meals.forEach(function(m){
+      html += '<div class="meal-block"><div class="meal-name">'+m.name+'<span class="meal-ora">'+m.ora+'</span></div>';
+      if(m.sub){ html += '<div class="meal-sub">'+m.sub+'</div>'; }
+      m.opts.forEach(function(o, i){
+        html += '<div class="opt">'+(m.opts.length>1?'<span class="opt-t">Opzione '+(i+1)+'</span>':'')+o+'</div>';
+      });
+      html += '</div>';
+    });
+    document.getElementById('claude-meals').innerHTML = html;
+  }
+  document.getElementById('claude-rules').textContent = CLAUDE_RULES;
+  var claudePicker = document.getElementById('claude-day-picker');
+  claudePicker.addEventListener('click', function(e){
+    var btn = e.target.closest('.pill');
+    if(!btn) return;
+    claudePicker.querySelectorAll('.pill').forEach(function(p){ p.setAttribute('aria-pressed', p===btn?'true':'false'); });
+    renderClaude(btn.dataset.claude);
+  });
+  renderClaude('riposo');
 
   // ---------- render diet ----------
   renderDietDay('diet1','macro1',DIET1,'d1');
