@@ -202,6 +202,15 @@ button{font:inherit; cursor:pointer;}
 .mbtn{background:var(--surface-3); border:1px solid var(--border); color:var(--fg); border-radius:8px; width:40px; height:40px; font-size:16px; line-height:1; flex:0 0 auto;}
 .mbtn:disabled{opacity:.3;}
 
+/* diario cibo */
+.fl-cols, .fl-row{display:grid; grid-template-columns:1fr 64px 64px 40px; gap:6px; align-items:center;}
+.fl-cols{margin-bottom:4px;}
+.fl-row{margin-bottom:6px;}
+.fl-row input{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 8px; font-family:'IBM Plex Mono',monospace;}
+.fl-row input.fl-n{font-family:'Inter',system-ui,sans-serif;}
+.fl-row input::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
+.fl-add{margin-top:6px;}
+
 /* nessuno zoom: campi a 16px e niente doppio tocco */
 html{touch-action:manipulation; -webkit-text-size-adjust:100%;}
 input,select,textarea{font-size:16px !important;}
@@ -311,6 +320,31 @@ input,select,textarea{font-size:16px !important;}
     <div class="card">
       <h2>Regole semplici</h2>
       <div class="desc" id="claude-rules"></div>
+    </div>
+  </section>
+
+  <!-- DIARIO CIBO -->
+  <section class="panel" id="panel-diario" hidden>
+    <div class="card">
+      <div class="eyebrow">Quanto mangio davvero</div>
+      <h2>Diario cibo</h2>
+      <div class="desc">Segna ogni alimento con il suo peso, nell'ordine della giornata. Le calorie sono facoltative: se non le sai, lasciale vuote e le calcoliamo insieme.</div>
+      <div class="input-row">
+        <input type="date" id="fl-date" aria-label="Giorno">
+      </div>
+      <div class="macro-row">
+        <span class="macro total" id="fl-day-total"></span>
+      </div>
+    </div>
+
+    <div id="fl-meals" style="display:flex; flex-direction:column; gap:14px;"></div>
+
+    <div class="card">
+      <div class="save-row">
+        <button class="btn" id="fl-save">Salva il giorno</button>
+        <button class="btn secondary small" id="fl-copy">Copia riepilogo</button>
+      </div>
+      <div class="save-status" id="fl-status"></div>
     </div>
   </section>
 
@@ -694,11 +728,12 @@ input,select,textarea{font-size:16px !important;}
     fisio:         'Fisio',
     alimentazione: 'Alimentazione Mattia Saco',
     alimclaude:    'Alimentazione Claude',
+    diario:        'Diario cibo',
     integratori:   'Integratori',
     bici:          'Bici',
     progressi:     'Progressi'
   };
-  var DEFAULT_ORDER = ['allenamento','fisio','alimentazione','alimclaude','integratori','bici','progressi'];
+  var DEFAULT_ORDER = ['allenamento','fisio','alimentazione','alimclaude','diario','integratori','bici','progressi'];
   var menuOrder = DEFAULT_ORDER.slice();
   var currentTab = 'allenamento';
 
@@ -1159,11 +1194,145 @@ input,select,textarea{font-size:16px !important;}
     }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
   });
 
+  // ---------- diario cibo ----------
+  var FOOD_MEALS = [
+    {id:'colazione', name:'Colazione'},
+    {id:'spuntino1', name:'Spuntino'},
+    {id:'pranzo',    name:'Pranzo'},
+    {id:'spuntino2', name:'Spuntino'},
+    {id:'cena',      name:'Cena'}
+  ];
+  var foodData = {};
+  var flEl = document.getElementById('fl-meals');
+  var flDate = document.getElementById('fl-date');
+  function localISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  flDate.value = localISO();
+  function escF(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function emptyRow(){ return {n:'', g:'', k:''}; }
+  function setFoodData(src){
+    foodData = {};
+    FOOD_MEALS.forEach(function(m){
+      var rows = (src && src[m.id] || []).map(function(r){ return {n:r.n||'', g:(r.g==null?'':r.g), k:(r.k==null?'':r.k)}; });
+      while(rows.length < 3) rows.push(emptyRow());
+      foodData[m.id] = rows;
+    });
+  }
+  function renderFood(){
+    flEl.innerHTML = FOOD_MEALS.map(function(m){
+      var rows = foodData[m.id].map(function(r,i){
+        return '<div class="fl-row" data-m="'+m.id+'" data-i="'+i+'">'+
+          '<input type="text" class="fl-n" placeholder="Alimento" value="'+escF(r.n)+'" aria-label="Alimento">'+
+          '<input type="number" inputmode="decimal" class="fl-g" placeholder="g" value="'+escF(r.g)+'" aria-label="Grammi">'+
+          '<input type="number" inputmode="decimal" class="fl-k" placeholder="kcal" value="'+escF(r.k)+'" aria-label="Calorie">'+
+          '<button class="mbtn fl-del" aria-label="Togli la riga">&times;</button></div>';
+      }).join('');
+      return '<div class="card" data-meal="'+m.id+'"><h2>'+m.name+'</h2>'+
+        '<div class="fl-cols"><span class="col-lbl">Alimento</span><span class="col-lbl">Grammi</span><span class="col-lbl">Calorie</span><span></span></div>'+
+        rows+
+        '<button class="btn secondary small fl-add" data-m="'+m.id+'">+ Aggiungi alimento</button>'+
+        '<div class="macro-row"><span class="macro" id="fl-tot-'+m.id+'"></span></div></div>';
+    }).join('');
+    updateFoodTotals();
+  }
+  function num(v){ var x = parseFloat(v); return isNaN(x) ? 0 : x; }
+  function updateFoodTotals(){
+    var dayG = 0, dayK = 0;
+    FOOD_MEALS.forEach(function(m){
+      var g = 0, k = 0;
+      foodData[m.id].forEach(function(r){ g += num(r.g); k += num(r.k); });
+      dayG += g; dayK += k;
+      var el = document.getElementById('fl-tot-'+m.id);
+      if(el) el.textContent = Math.round(g)+' g'+(k ? ' · '+Math.round(k)+' kcal' : '');
+    });
+    document.getElementById('fl-day-total').textContent = 'Totale giorno: '+Math.round(dayG)+' g'+(dayK ? ' · '+Math.round(dayK)+' kcal' : '');
+  }
+  function cleanedFood(){
+    var out = {};
+    FOOD_MEALS.forEach(function(m){
+      out[m.id] = foodData[m.id].filter(function(r){ return r.n || r.g !== '' || r.k !== ''; }).map(function(r){
+        var o = {n: r.n};
+        if(r.g !== '') o.g = num(r.g);
+        if(r.k !== '') o.k = num(r.k);
+        return o;
+      });
+    });
+    return out;
+  }
+  function saveFoodDraft(){
+    try{ localStorage.setItem('foodlog-'+flDate.value, JSON.stringify(cleanedFood())); }catch(e){}
+  }
+  flEl.addEventListener('input', function(e){
+    var row = e.target.closest('.fl-row'); if(!row) return;
+    var r = foodData[row.dataset.m][parseInt(row.dataset.i,10)]; if(!r) return;
+    if(e.target.classList.contains('fl-n')) r.n = e.target.value;
+    else if(e.target.classList.contains('fl-g')) r.g = e.target.value;
+    else if(e.target.classList.contains('fl-k')) r.k = e.target.value;
+    updateFoodTotals(); saveFoodDraft();
+  });
+  flEl.addEventListener('click', function(e){
+    var add = e.target.closest('.fl-add');
+    if(add){ foodData[add.dataset.m].push(emptyRow()); renderFood(); return; }
+    var del = e.target.closest('.fl-del');
+    if(del){
+      var row = del.closest('.fl-row');
+      var list = foodData[row.dataset.m];
+      list.splice(parseInt(row.dataset.i,10), 1);
+      while(list.length < 1) list.push(emptyRow());
+      renderFood(); saveFoodDraft();
+    }
+  });
+  function loadFoodDay(){
+    var date = flDate.value || localISO();
+    var status = document.getElementById('fl-status');
+    status.textContent = ''; status.classList.remove('ok');
+    var draft = null;
+    try{ draft = JSON.parse(localStorage.getItem('foodlog-'+date)||'null'); }catch(e){}
+    setFoodData(draft); renderFood();
+    if(!db) return;
+    db.doc('foodlog/'+date).get().then(function(doc){
+      if(flDate.value !== date) return;
+      if(doc.exists){ setFoodData(doc.data().meals); renderFood(); }
+    }).catch(function(){});
+  }
+  flDate.addEventListener('change', loadFoodDay);
+  document.getElementById('fl-save').addEventListener('click', function(){
+    var status = document.getElementById('fl-status');
+    var date = flDate.value || localISO();
+    status.classList.remove('ok');
+    saveFoodDraft();
+    if(!db){ status.textContent = 'Salvato solo su questo dispositivo.'; return; }
+    status.textContent = 'Salvataggio...';
+    db.doc('foodlog/'+date).set({ date: date, meals: cleanedFood() }).then(function(){
+      status.textContent = 'Giorno salvato.'; status.classList.add('ok');
+    }).catch(function(){ status.textContent = 'Salvato su questo dispositivo, ma non online.'; });
+  });
+  document.getElementById('fl-copy').addEventListener('click', function(){
+    var status = document.getElementById('fl-status');
+    var data = cleanedFood();
+    var lines = ['Diario cibo del '+fmtDate(flDate.value || localISO())];
+    FOOD_MEALS.forEach(function(m){
+      var rows = data[m.id];
+      if(!rows.length) return;
+      lines.push(m.name+': '+rows.map(function(r){
+        return (r.n || 'senza nome')+(r.g != null ? ' '+r.g+' g' : '')+(r.k != null ? ' ('+r.k+' kcal)' : '');
+      }).join('; '));
+    });
+    var text = lines.join('\n');
+    var done = function(){ status.textContent = 'Riepilogo copiato: incollalo nella chat.'; status.classList.add('ok'); };
+    var fail = function(){ status.textContent = 'Non riesco a copiare: tieni premuto e copia a mano.'; status.classList.remove('ok'); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done, fail); }
+    else fail();
+  });
+  setFoodData(null); renderFood();
+
   function boot(){
     var cfg = window.FIREBASE_CONFIG;
     if(!cfg || !cfg.apiKey || cfg.apiKey === 'YOUR_API_KEY'){
       document.getElementById('save-status').textContent = 'Firebase non configurato (vedi README).';
-      loadSessionHistory(); loadWeightHistory();
+      loadSessionHistory(); loadWeightHistory(); loadFoodDay();
       return;
     }
     try{
@@ -1172,6 +1341,7 @@ input,select,textarea{font-size:16px !important;}
     }catch(e){}
     loadSessionHistory();
     loadWeightHistory();
+    loadFoodDay();
     applyLastValues();
     loadMenuFromDb();
     loadRestFromDb();
