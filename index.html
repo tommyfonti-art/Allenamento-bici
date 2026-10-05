@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Allenamento e alimentazione</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -201,6 +201,16 @@ button{font:inherit; cursor:pointer;}
 .menu-row .mnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); width:18px;}
 .mbtn{background:var(--surface-3); border:1px solid var(--border); color:var(--fg); border-radius:8px; width:40px; height:40px; font-size:16px; line-height:1; flex:0 0 auto;}
 .mbtn:disabled{opacity:.3;}
+
+/* nessuno zoom: campi a 16px e niente doppio tocco */
+html{touch-action:manipulation; -webkit-text-size-adjust:100%;}
+input,select,textarea{font-size:16px !important;}
+
+/* recupero per esercizio */
+.rest-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+.rest-lbl{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-2); font-weight:700;}
+.rest-input{width:120px; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:6px 8px; font-family:'IBM Plex Mono',monospace;}
+.rest-input::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
 </style>
 </head>
 <body>
@@ -956,6 +966,33 @@ button{font:inherit; cursor:pointer;}
     return h + '</div>';
   }).join('');
 
+
+  // ---------- recuperi (uno per esercizio, modificabili e salvati online) ----------
+  var restTimes = {};
+  try{ restTimes = JSON.parse(localStorage.getItem('rest-times')||'{}') || {}; }catch(e){ restTimes = {}; }
+  function applyRest(){
+    document.querySelectorAll('#exercise-list .rest-input').forEach(function(inp){
+      inp.value = restTimes[inp.dataset.rest] || '';
+    });
+  }
+  document.getElementById('exercise-list').addEventListener('change', function(e){
+    var inp = e.target.closest('.rest-input');
+    if(!inp) return;
+    var v = inp.value.trim();
+    if(v){ restTimes[inp.dataset.rest] = v; } else { delete restTimes[inp.dataset.rest]; }
+    try{ localStorage.setItem('rest-times', JSON.stringify(restTimes)); }catch(e2){}
+    if(db){ db.doc('settings/recuperi').set({ times: restTimes }).catch(function(){}); }
+  });
+  function loadRestFromDb(){
+    if(!db) return;
+    db.doc('settings/recuperi').get().then(function(doc){
+      if(!doc.exists) return;
+      restTimes = doc.data().times || {};
+      try{ localStorage.setItem('rest-times', JSON.stringify(restTimes)); }catch(e){}
+      applyRest();
+    }).catch(function(){});
+  }
+
   // ---------- workout day picker + exercise rendering ----------
   var currentDay = 'tb1';
   var dayPicker = document.getElementById('day-picker');
@@ -974,6 +1011,7 @@ button{font:inherit; cursor:pointer;}
     day.exercises.forEach(function(ex, exi){
       html += '<div class="exercise" data-ex="'+exi+'">';
       html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+ex.name+'</span><span class="ex-target">3× '+ex.reps+'</span></div>';
+      html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><input type="text" class="rest-input" data-rest="'+currentDay+'|'+ex.name+'" placeholder="es. 90 s" autocomplete="off"></div>';
       html += '<div class="set-grid"><span></span><span class="col-lbl">kg</span><span class="col-lbl">reps</span><span class="col-lbl">✓</span></div>';
       for(var s=1;s<=3;s++){
         html += '<div class="set-grid">'+
@@ -986,6 +1024,7 @@ button{font:inherit; cursor:pointer;}
       html += '</div>';
     });
     document.getElementById('exercise-list').innerHTML = html;
+    applyRest();
     applyLastValues();
   }
   renderExercises();
@@ -1135,8 +1174,10 @@ button{font:inherit; cursor:pointer;}
     loadWeightHistory();
     applyLastValues();
     loadMenuFromDb();
+    loadRestFromDb();
   }
   boot();
+  ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }); });
 })();
 </script>
 </body>
