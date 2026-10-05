@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Diario 4 Mesi</title>
+<title>Allenamento e alimentazione</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Diario 4 Mesi">
+<meta name="apple-mobile-web-app-title" content="Allenamento e alimentazione">
 <meta name="theme-color" content="#131110">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -193,6 +193,14 @@ button{font:inherit; cursor:pointer;}
 .bike-wk-block{display:flex; justify-content:space-between; gap:8px; background:var(--surface-2); border-radius:8px; padding:8px 10px; font-size:13px;}
 .bike-wk-block .bn{font-weight:600;}
 .bike-wk-block .bd{font-family:'IBM Plex Mono',monospace; color:var(--muted); white-space:nowrap;}
+
+/* impostazioni: ordine del menu */
+.menu-list{display:flex; flex-direction:column; gap:8px; margin-bottom:12px;}
+.menu-row{display:flex; align-items:center; gap:8px; background:var(--surface-2); border-radius:10px; padding:8px 10px;}
+.menu-row .mname{flex:1; min-width:0; font-weight:600; font-size:13.5px;}
+.menu-row .mnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); width:18px;}
+.mbtn{background:var(--surface-3); border:1px solid var(--border); color:var(--fg); border-radius:8px; width:40px; height:40px; font-size:16px; line-height:1; flex:0 0 auto;}
+.mbtn:disabled{opacity:.3;}
 </style>
 </head>
 <body>
@@ -200,18 +208,10 @@ button{font:inherit; cursor:pointer;}
 <div class="wrap">
   <div class="topbar">
     <div class="title-row">
-      <h1>Diario 4 Mesi</h1>
+      <h1>Allenamento e alimentazione</h1>
       <span class="sub" id="today-label"></span>
     </div>
-    <div class="tabs" role="tablist">
-      <button class="tab-btn" role="tab" data-tab="allenamento" aria-selected="true">Allenamento</button>
-      <button class="tab-btn" role="tab" data-tab="alimentazione" aria-selected="false">Alimentazione Mattia Saco</button>
-      <button class="tab-btn" role="tab" data-tab="alimclaude" aria-selected="false">Alimentazione Claude</button>
-      <button class="tab-btn" role="tab" data-tab="integratori" aria-selected="false">Integratori</button>
-      <button class="tab-btn" role="tab" data-tab="bici" aria-selected="false">Bici</button>
-      <button class="tab-btn" role="tab" data-tab="fisio" aria-selected="false">Fisio</button>
-      <button class="tab-btn" role="tab" data-tab="progressi" aria-selected="false">Progressi</button>
-    </div>
+    <div class="tabs" role="tablist" id="tabs"></div>
   </div>
 
   <!-- ALLENAMENTO -->
@@ -375,6 +375,18 @@ button{font:inherit; cursor:pointer;}
       <button class="btn" id="save-weight">Salva peso</button>
       <div class="save-status" id="weight-status"></div>
       <table class="bw-table" id="bw-history"></table>
+    </div>
+  </section>
+
+
+  <!-- IMPOSTAZIONI -->
+  <section class="panel" id="panel-impostazioni" hidden>
+    <div class="card">
+      <h2>Ordine del menu</h2>
+      <div class="desc">Usa le frecce per spostare le voci in alto o in basso. Il cambio vale subito e resta salvato.</div>
+      <div class="menu-list" id="menu-order-list"></div>
+      <button class="btn secondary" id="menu-reset">Riporta l'ordine iniziale</button>
+      <div class="save-status" id="menu-status"></div>
     </div>
   </section>
 </div>
@@ -666,15 +678,87 @@ button{font:inherit; cursor:pointer;}
   var PHYSIO_FLAT = [];
   PHYSIO.forEach(function(g){ g.items.forEach(function(it){ PHYSIO_FLAT.push({label:g.name+' — '+it.name}); }); });
 
-  // ---------- tabs ----------
-  var tabBtns = document.querySelectorAll('.tab-btn');
-  tabBtns.forEach(function(btn){
-    btn.addEventListener('click', function(){
-      tabBtns.forEach(function(b){ b.setAttribute('aria-selected', b===btn ? 'true':'false'); });
-      document.querySelectorAll('.panel').forEach(function(p){ p.hidden = true; });
-      document.getElementById('panel-'+btn.dataset.tab).hidden = false;
-    });
+  // ---------- menu (ordine modificabile dalle Impostazioni) ----------
+  var TABS = {
+    allenamento:   'Allenamento',
+    fisio:         'Fisio',
+    alimentazione: 'Alimentazione Mattia Saco',
+    alimclaude:    'Alimentazione Claude',
+    integratori:   'Integratori',
+    bici:          'Bici',
+    progressi:     'Progressi'
+  };
+  var DEFAULT_ORDER = ['allenamento','fisio','alimentazione','alimclaude','integratori','bici','progressi'];
+  var menuOrder = DEFAULT_ORDER.slice();
+  var currentTab = 'allenamento';
+
+  function cleanOrder(arr){
+    var out = [];
+    (arr||[]).forEach(function(id){ if(TABS[id] && out.indexOf(id)<0) out.push(id); });
+    DEFAULT_ORDER.forEach(function(id){ if(out.indexOf(id)<0) out.push(id); });
+    return out;
+  }
+  try{ menuOrder = cleanOrder(JSON.parse(localStorage.getItem('menu-order')||'null')); }catch(e){ menuOrder = DEFAULT_ORDER.slice(); }
+
+  function showTab(id){
+    currentTab = id;
+    document.querySelectorAll('.panel').forEach(function(p){ p.hidden = true; });
+    document.getElementById('panel-'+id).hidden = false;
+    document.querySelectorAll('#tabs .tab-btn').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.tab===id ? 'true':'false'); });
+  }
+  function renderTabs(){
+    var html = menuOrder.map(function(id){
+      return '<button class="tab-btn" role="tab" data-tab="'+id+'" aria-selected="'+(id===currentTab)+'">'+TABS[id]+'</button>';
+    }).join('');
+    html += '<button class="tab-btn" role="tab" data-tab="impostazioni" aria-selected="'+(currentTab==='impostazioni')+'">Impostazioni</button>';
+    document.getElementById('tabs').innerHTML = html;
+  }
+  document.getElementById('tabs').addEventListener('click', function(e){
+    var btn = e.target.closest('.tab-btn');
+    if(btn) showTab(btn.dataset.tab);
   });
+
+  function renderMenuSettings(){
+    document.getElementById('menu-order-list').innerHTML = menuOrder.map(function(id, i){
+      return '<div class="menu-row"><span class="mnum">'+(i+1)+'</span><span class="mname">'+TABS[id]+'</span>'+
+        '<button class="mbtn" data-id="'+id+'" data-dir="-1" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
+        '<button class="mbtn" data-id="'+id+'" data-dir="1" aria-label="Sposta gi\u00f9"'+(i===menuOrder.length-1?' disabled':'')+'>&#9660;</button></div>';
+    }).join('');
+  }
+  function saveMenuOrder(){
+    try{ localStorage.setItem('menu-order', JSON.stringify(menuOrder)); }catch(e){}
+    var status = document.getElementById('menu-status');
+    status.classList.remove('ok');
+    if(!db){ status.textContent = 'Salvato solo su questo dispositivo.'; return; }
+    db.doc('settings/menu').set({ order: menuOrder }).then(function(){
+      status.textContent = 'Ordine salvato.'; status.classList.add('ok');
+    }).catch(function(){ status.textContent = 'Salvato su questo dispositivo, ma non online.'; });
+  }
+  function refreshMenu(){ renderTabs(); renderMenuSettings(); }
+  document.getElementById('menu-order-list').addEventListener('click', function(e){
+    var btn = e.target.closest('.mbtn');
+    if(!btn || btn.disabled) return;
+    var i = menuOrder.indexOf(btn.dataset.id), j = i + parseInt(btn.dataset.dir,10);
+    if(i<0 || j<0 || j>=menuOrder.length) return;
+    var t = menuOrder[i]; menuOrder[i] = menuOrder[j]; menuOrder[j] = t;
+    refreshMenu(); saveMenuOrder();
+  });
+  document.getElementById('menu-reset').addEventListener('click', function(){
+    menuOrder = DEFAULT_ORDER.slice();
+    refreshMenu(); saveMenuOrder();
+  });
+  function loadMenuFromDb(){
+    if(!db) return;
+    db.doc('settings/menu').get().then(function(doc){
+      if(!doc.exists) return;
+      var o = cleanOrder(doc.data().order);
+      if(o.join() === menuOrder.join()) return;
+      menuOrder = o;
+      try{ localStorage.setItem('menu-order', JSON.stringify(menuOrder)); }catch(e){}
+      refreshMenu();
+    }).catch(function(){});
+  }
+  refreshMenu();
 
   // ---------- alimentazione Claude (tre schemi) ----------
   var PUB_OPT = [
@@ -1050,6 +1134,7 @@ button{font:inherit; cursor:pointer;}
     loadSessionHistory();
     loadWeightHistory();
     applyLastValues();
+    loadMenuFromDb();
   }
   boot();
 })();

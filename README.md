@@ -1,4 +1,4 @@
-# Diario 4 Mesi — Allenamento, Alimentazione, Bici
+# Allenamento e alimentazione
 
 App personale per il percorso di 4 mesi con coach, nutrizionista e consulente bici.
 Sito statico, nessuna build necessaria: `index.html` è tutta l'app.
@@ -28,4 +28,4 @@ Da quel momento l'app salva davvero, su un database solo tuo.
 
 ## Aggiornamenti
 
-Per qualsiasi modifica (nuovi allenamenti, correzioni, nuove sezioni), basta chiederlo a Claude nella chat del Diario 4 Mesi: aggiorna il codice e lo pubblica qui.
+Per qualsiasi modifica (nuovi allenamenti, correzioni, nuove sezioni), basta chiederlo a Claude nella chat di Claude: aggiorna il codice e lo pubblica qui.
