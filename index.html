@@ -330,6 +330,11 @@ input,select,textarea{font-size:16px !important;}
       <div class="eyebrow">Quanto mangio davvero</div>
       <h2>Diario cibo</h2>
       <div class="desc">Segna ogni alimento con il suo peso, nell'ordine della giornata. Le calorie sono facoltative: se non le sai, lasciale vuote e le calcoliamo insieme.</div>
+      <div class="pill-row" id="fl-type-picker">
+        <button class="pill" data-type="riposo" aria-pressed="true">Riposo</button>
+        <button class="pill" data-type="palestra" aria-pressed="false">Palestra</button>
+        <button class="pill" data-type="bici" aria-pressed="false">Bici</button>
+      </div>
       <div class="input-row">
         <input type="date" id="fl-date" aria-label="Giorno">
       </div>
@@ -1204,6 +1209,14 @@ input,select,textarea{font-size:16px !important;}
     {id:'cena',      name:'Cena'}
   ];
   var foodData = {};
+  var flType = 'riposo';
+  var TYPE_LABEL = {riposo:'riposo', palestra:'palestra', bici:'bici'};
+  function setFlType(t){
+    flType = TYPE_LABEL[t] ? t : 'riposo';
+    document.querySelectorAll('#fl-type-picker .pill').forEach(function(b){
+      b.setAttribute('aria-pressed', b.dataset.type === flType ? 'true' : 'false');
+    });
+  }
   var flEl = document.getElementById('fl-meals');
   var flDate = document.getElementById('fl-date');
   function localISO(){
@@ -1263,8 +1276,12 @@ input,select,textarea{font-size:16px !important;}
     return out;
   }
   function saveFoodDraft(){
-    try{ localStorage.setItem('foodlog-'+flDate.value, JSON.stringify(cleanedFood())); }catch(e){}
+    try{ localStorage.setItem('foodlog-'+flDate.value, JSON.stringify({type: flType, meals: cleanedFood()})); }catch(e){}
   }
+  document.getElementById('fl-type-picker').addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    setFlType(b.dataset.type); saveFoodDraft();
+  });
   flEl.addEventListener('input', function(e){
     var row = e.target.closest('.fl-row'); if(!row) return;
     var r = foodData[row.dataset.m][parseInt(row.dataset.i,10)]; if(!r) return;
@@ -1291,11 +1308,12 @@ input,select,textarea{font-size:16px !important;}
     status.textContent = ''; status.classList.remove('ok');
     var draft = null;
     try{ draft = JSON.parse(localStorage.getItem('foodlog-'+date)||'null'); }catch(e){}
-    setFoodData(draft); renderFood();
+    setFlType(draft && draft.type);
+    setFoodData(draft && draft.meals ? draft.meals : draft); renderFood();
     if(!db) return;
     db.doc('foodlog/'+date).get().then(function(doc){
       if(flDate.value !== date) return;
-      if(doc.exists){ setFoodData(doc.data().meals); renderFood(); }
+      if(doc.exists){ setFlType(doc.data().dayType); setFoodData(doc.data().meals); renderFood(); }
     }).catch(function(){});
   }
   flDate.addEventListener('change', loadFoodDay);
@@ -1306,14 +1324,14 @@ input,select,textarea{font-size:16px !important;}
     saveFoodDraft();
     if(!db){ status.textContent = 'Salvato solo su questo dispositivo.'; return; }
     status.textContent = 'Salvataggio...';
-    db.doc('foodlog/'+date).set({ date: date, meals: cleanedFood() }).then(function(){
+    db.doc('foodlog/'+date).set({ date: date, dayType: flType, meals: cleanedFood() }).then(function(){
       status.textContent = 'Giorno salvato.'; status.classList.add('ok');
     }).catch(function(){ status.textContent = 'Salvato su questo dispositivo, ma non online.'; });
   });
   document.getElementById('fl-copy').addEventListener('click', function(){
     var status = document.getElementById('fl-status');
     var data = cleanedFood();
-    var lines = ['Diario cibo del '+fmtDate(flDate.value || localISO())];
+    var lines = ['Diario cibo del '+fmtDate(flDate.value || localISO())+' · giorno di '+TYPE_LABEL[flType]];
     FOOD_MEALS.forEach(function(m){
       var rows = data[m.id];
       if(!rows.length) return;
