@@ -204,7 +204,7 @@ html,body{overscroll-behavior-y:none;}
 .mbtn:disabled{opacity:.3;}
 
 /* diario cibo */
-.fl-cols, .fl-row{display:grid; grid-template-columns:1fr 64px 64px 40px; gap:6px; align-items:center;}
+.fl-cols, .fl-row{display:grid; grid-template-columns:1fr 62px 72px 40px; gap:6px; align-items:center;}
 .fl-cols{margin-bottom:4px;}
 .fl-row{margin-bottom:6px;}
 .fl-row input{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 8px; font-family:'IBM Plex Mono',monospace;}
@@ -329,7 +329,7 @@ input,select,textarea{font-size:16px !important;}
     <div class="card">
       <div class="eyebrow">Quanto mangio davvero</div>
       <h2>Diario cibo</h2>
-      <div class="desc">Segna ogni alimento con il suo peso, nell'ordine della giornata. Le calorie sono facoltative: se non le sai, lasciale vuote e le calcoliamo insieme.</div>
+      <div class="desc">Segna ogni alimento con il suo peso, nell'ordine della giornata. Se leggi l'etichetta, scrivi le calorie per 100 grammi: il totale lo calcola l'app. Se non le sai, lascia vuoto e le calcoliamo insieme.</div>
       <div class="pill-row" id="fl-type-picker">
         <button class="pill" data-type="riposo" aria-pressed="true">Riposo</button>
         <button class="pill" data-type="palestra" aria-pressed="false">Palestra</button>
@@ -1229,7 +1229,7 @@ input,select,textarea{font-size:16px !important;}
   function setFoodData(src){
     foodData = {};
     FOOD_MEALS.forEach(function(m){
-      var rows = (src && src[m.id] || []).map(function(r){ return {n:r.n||'', g:(r.g==null?'':r.g), k:(r.k==null?'':r.k)}; });
+      var rows = (src && src[m.id] || []).map(function(r){ return {n:r.n||'', g:(r.g==null?'':r.g), k:(r.k100==null?'':r.k100)}; });
       while(rows.length < 3) rows.push(emptyRow());
       foodData[m.id] = rows;
     });
@@ -1240,11 +1240,11 @@ input,select,textarea{font-size:16px !important;}
         return '<div class="fl-row" data-m="'+m.id+'" data-i="'+i+'">'+
           '<input type="text" class="fl-n" placeholder="Alimento" value="'+escF(r.n)+'" aria-label="Alimento">'+
           '<input type="number" inputmode="decimal" class="fl-g" placeholder="g" value="'+escF(r.g)+'" aria-label="Grammi">'+
-          '<input type="number" inputmode="decimal" class="fl-k" placeholder="kcal" value="'+escF(r.k)+'" aria-label="Calorie">'+
+          '<input type="number" inputmode="decimal" class="fl-k" placeholder="kcal" value="'+escF(r.k)+'" aria-label="Calorie per 100 grammi">'+
           '<button class="mbtn fl-del" aria-label="Togli la riga">&times;</button></div>';
       }).join('');
       return '<div class="card" data-meal="'+m.id+'"><h2>'+m.name+'</h2>'+
-        '<div class="fl-cols"><span class="col-lbl">Alimento</span><span class="col-lbl">Grammi</span><span class="col-lbl">Calorie</span><span></span></div>'+
+        '<div class="fl-cols"><span class="col-lbl">Alimento</span><span class="col-lbl">Grammi</span><span class="col-lbl">Kcal/100 g</span><span></span></div>'+
         rows+
         '<button class="btn secondary small fl-add" data-m="'+m.id+'">+ Aggiungi alimento</button>'+
         '<div class="macro-row"><span class="macro" id="fl-tot-'+m.id+'"></span></div></div>';
@@ -1256,7 +1256,7 @@ input,select,textarea{font-size:16px !important;}
     var dayG = 0, dayK = 0;
     FOOD_MEALS.forEach(function(m){
       var g = 0, k = 0;
-      foodData[m.id].forEach(function(r){ g += num(r.g); k += num(r.k); });
+      foodData[m.id].forEach(function(r){ g += num(r.g); k += num(r.g) * num(r.k) / 100; });
       dayG += g; dayK += k;
       var el = document.getElementById('fl-tot-'+m.id);
       if(el) el.textContent = Math.round(g)+' g'+(k ? ' · '+Math.round(k)+' kcal' : '');
@@ -1269,7 +1269,7 @@ input,select,textarea{font-size:16px !important;}
       out[m.id] = foodData[m.id].filter(function(r){ return r.n || r.g !== '' || r.k !== ''; }).map(function(r){
         var o = {n: r.n};
         if(r.g !== '') o.g = num(r.g);
-        if(r.k !== '') o.k = num(r.k);
+        if(r.k !== '') o.k100 = num(r.k);
         return o;
       });
     });
@@ -1336,7 +1336,7 @@ input,select,textarea{font-size:16px !important;}
       var rows = data[m.id];
       if(!rows.length) return;
       lines.push(m.name+': '+rows.map(function(r){
-        return (r.n || 'senza nome')+(r.g != null ? ' '+r.g+' g' : '')+(r.k != null ? ' ('+r.k+' kcal)' : '');
+        return (r.n || 'senza nome')+(r.g != null ? ' '+r.g+' g' : '')+(r.k100 != null ? ' ('+r.k100+' kcal per 100 g'+(r.g != null ? ', in totale '+Math.round(r.g*r.k100/100)+' kcal' : '')+')' : '');
       }).join('; '));
     });
     var text = lines.join('\n');
