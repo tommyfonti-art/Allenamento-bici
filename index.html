@@ -1230,7 +1230,12 @@ input,select,textarea{font-size:16px !important;}
   function setFoodData(src){
     foodData = {};
     FOOD_MEALS.forEach(function(m){
-      var rows = (src && src[m.id] || []).map(function(r){ return {n:r.n||'', g:(r.g==null?'':r.g), k:(r.k100==null?'':r.k100)}; });
+      var rows = (src && src[m.id] || []).map(function(r){
+        var k = '';
+        if(r.k100 != null) k = r.k100;
+        else if(r.k != null && num(r.g) > 0) k = Math.round(num(r.k) / num(r.g) * 1000) / 10;
+        return {n:r.n||'', g:(r.g==null?'':r.g), k:k};
+      });
       while(rows.length < 3) rows.push(emptyRow());
       foodData[m.id] = rows;
     });
@@ -1277,8 +1282,21 @@ input,select,textarea{font-size:16px !important;}
     return out;
   }
   function saveFoodDraft(){
-    try{ localStorage.setItem('foodlog-'+flDate.value, JSON.stringify({type: flType, meals: cleanedFood()})); }catch(e){}
+    var payload = {date: flDate.value, dayType: flType, meals: cleanedFood(), updated: Date.now()};
+    try{ localStorage.setItem('foodlog-'+payload.date, JSON.stringify({type: flType, meals: payload.meals, updated: payload.updated})); }catch(e){}
+    pendingFood = payload;
+    clearTimeout(foodTimer);
+    foodTimer = setTimeout(flushFood, 1200);
   }
+  var pendingFood = null, foodTimer = null;
+  function flushFood(){
+    clearTimeout(foodTimer);
+    var pl = pendingFood; pendingFood = null;
+    if(!pl || !db) return;
+    db.doc('foodlog/'+pl.date).set(pl).catch(function(){});
+  }
+  document.addEventListener('visibilitychange', function(){ if(document.hidden) flushFood(); });
+  window.addEventListener('pagehide', flushFood);
   document.getElementById('fl-type-picker').addEventListener('click', function(e){
     var b = e.target.closest('.pill'); if(!b) return;
     setFlType(b.dataset.type); saveFoodDraft();
@@ -1314,7 +1332,16 @@ input,select,textarea{font-size:16px !important;}
     if(!db) return;
     db.doc('foodlog/'+date).get().then(function(doc){
       if(flDate.value !== date) return;
-      if(doc.exists){ setFlType(doc.data().dayType); setFoodData(doc.data().meals); renderFood(); }
+      if(!doc.exists) return;
+      var remote = doc.data() || {};
+      var localT = (draft && draft.updated) || 0, remoteT = remote.updated || 0;
+      if(draft && localT >= remoteT){
+        // sul telefono c'e' una versione piu recente: la tengo e la mando online
+        pendingFood = {date: date, dayType: (draft.type || 'riposo'), meals: cleanedFood(), updated: localT || Date.now()};
+        flushFood();
+        return;
+      }
+      setFlType(remote.dayType); setFoodData(remote.meals); renderFood();
     }).catch(function(){});
   }
   flDate.addEventListener('change', loadFoodDay);
@@ -1325,7 +1352,7 @@ input,select,textarea{font-size:16px !important;}
     saveFoodDraft();
     if(!db){ status.textContent = 'Salvato solo su questo dispositivo.'; return; }
     status.textContent = 'Salvataggio...';
-    db.doc('foodlog/'+date).set({ date: date, dayType: flType, meals: cleanedFood() }).then(function(){
+    db.doc('foodlog/'+date).set({ date: date, dayType: flType, meals: cleanedFood(), updated: Date.now() }).then(function(){
       status.textContent = 'Giorno salvato.'; status.classList.add('ok');
     }).catch(function(){ status.textContent = 'Salvato su questo dispositivo, ma non online.'; });
   });
