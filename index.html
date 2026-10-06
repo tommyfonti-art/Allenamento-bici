@@ -1285,16 +1285,23 @@ input,select,textarea{font-size:16px !important;}
     var payload = {date: flDate.value, dayType: flType, meals: cleanedFood(), updated: Date.now()};
     try{ localStorage.setItem('foodlog-'+payload.date, JSON.stringify({type: flType, meals: payload.meals, updated: payload.updated})); }catch(e){}
     pendingFood = payload;
+    foodEdits++;
     clearTimeout(foodTimer);
-    foodTimer = setTimeout(flushFood, 1200);
+    foodTimer = setTimeout(flushFood, 250);
   }
-  var pendingFood = null, foodTimer = null;
+  var pendingFood = null, foodTimer = null, foodEdits = 0;
   function flushFood(){
     clearTimeout(foodTimer);
     var pl = pendingFood; pendingFood = null;
     if(!pl || !db) return;
-    db.doc('foodlog/'+pl.date).set(pl).catch(function(){});
+    var status = document.getElementById('fl-status');
+    db.doc('foodlog/'+pl.date).set(pl).then(function(){
+      if(!pendingFood){ status.textContent = 'Salvato.'; status.classList.add('ok'); }
+    }).catch(function(){ status.textContent = 'Salvato sul telefono, ma non ancora online.'; status.classList.remove('ok'); });
   }
+  // appena esci da una casella, salva subito senza aspettare
+  flEl.addEventListener('focusout', flushFood);
+  flEl.addEventListener('change', flushFood);
   document.addEventListener('visibilitychange', function(){ if(document.hidden) flushFood(); });
   window.addEventListener('pagehide', flushFood);
   document.getElementById('fl-type-picker').addEventListener('click', function(e){
@@ -1325,7 +1332,7 @@ input,select,textarea{font-size:16px !important;}
     var date = flDate.value || localISO();
     var status = document.getElementById('fl-status');
     status.textContent = ''; status.classList.remove('ok');
-    var draft = null;
+    var draft = null, editsAtLoad = foodEdits;
     try{ draft = JSON.parse(localStorage.getItem('foodlog-'+date)||'null'); }catch(e){}
     setFlType(draft && draft.type);
     setFoodData(draft && draft.meals ? draft.meals : draft); renderFood();
@@ -1333,6 +1340,8 @@ input,select,textarea{font-size:16px !important;}
     db.doc('foodlog/'+date).get().then(function(doc){
       if(flDate.value !== date) return;
       if(!doc.exists) return;
+      // se nel frattempo hai gia scritto qualcosa, quello che hai scritto non si tocca
+      if(foodEdits !== editsAtLoad){ return; }
       var remote = doc.data() || {};
       var localT = (draft && draft.updated) || 0, remoteT = remote.updated || 0;
       if(draft && localT >= remoteT){
