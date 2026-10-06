@@ -211,13 +211,6 @@ html,body{overscroll-behavior-y:none;}
 .fl-row input.fl-n{font-family:'Inter',system-ui,sans-serif;}
 .fl-row input::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
 .fl-add{margin-top:6px;}
-/* barra fissa in fondo con il totale delle calorie */
-.fl-bar{position:fixed; left:0; right:0; bottom:0; z-index:30; background:var(--surface); border-top:1px solid var(--border); padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 10px); box-shadow:0 -4px 14px rgba(0,0,0,.25);}
-.fl-bar[hidden]{display:none;}
-.fl-bar-in{max-width:720px; margin:0 auto; display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
-.fl-bar-k{font-family:'Oswald',system-ui,sans-serif; font-size:22px; font-weight:700; color:var(--accent-2);}
-.fl-bar-s{font-size:12px; color:var(--muted);}
-body.fl-bar-on{padding-block-end:84px;}
 
 /* nessuno zoom: campi a 16px e niente doppio tocco */
 html{touch-action:manipulation; -webkit-text-size-adjust:100%;}
@@ -360,13 +353,6 @@ input,select,textarea{font-size:16px !important;}
       <div class="save-status" id="fl-status"></div>
     </div>
   </section>
-
-  <div class="fl-bar" id="fl-bar" hidden>
-    <div class="fl-bar-in">
-      <span class="fl-bar-k" id="fl-bar-k">0 kcal</span>
-      <span class="fl-bar-s" id="fl-bar-s"></span>
-    </div>
-  </div>
 
   <!-- INTEGRATORI -->
   <section class="panel" id="panel-integratori" hidden>
@@ -769,8 +755,6 @@ input,select,textarea{font-size:16px !important;}
     currentTab = id;
     document.querySelectorAll('.panel').forEach(function(p){ p.hidden = true; });
     document.getElementById('panel-'+id).hidden = false;
-    var flBar = document.getElementById('fl-bar');
-    if(flBar){ flBar.hidden = (id !== 'diario'); document.body.classList.toggle('fl-bar-on', id === 'diario'); }
     document.querySelectorAll('#tabs .tab-btn').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.tab===id ? 'true':'false'); });
   }
   function renderTabs(){
@@ -1275,21 +1259,15 @@ input,select,textarea{font-size:16px !important;}
   }
   function num(v){ var x = parseFloat(v); return isNaN(x) ? 0 : x; }
   function updateFoodTotals(){
-    var dayG = 0, dayK = 0, noK = 0;
+    var dayG = 0, dayK = 0;
     FOOD_MEALS.forEach(function(m){
       var g = 0, k = 0;
-      foodData[m.id].forEach(function(r){
-        g += num(r.g); k += num(r.g) * num(r.k) / 100;
-        if(num(r.g) > 0 && !(num(r.k) > 0)) noK++;
-      });
+      foodData[m.id].forEach(function(r){ g += num(r.g); k += num(r.g) * num(r.k) / 100; });
       dayG += g; dayK += k;
       var el = document.getElementById('fl-tot-'+m.id);
       if(el) el.textContent = Math.round(g)+' g'+(k ? ' · '+Math.round(k)+' kcal' : '');
     });
     document.getElementById('fl-day-total').textContent = 'Totale giorno: '+Math.round(dayG)+' g'+(dayK ? ' · '+Math.round(dayK)+' kcal' : '');
-    var bk = document.getElementById('fl-bar-k'), bs = document.getElementById('fl-bar-s');
-    if(bk) bk.textContent = Math.round(dayK)+' kcal';
-    if(bs) bs.textContent = noK ? (noK === 1 ? '1 alimento senza calorie, non contato' : noK+' alimenti senza calorie, non contati') : 'Totale di oggi';
   }
   function cleanedFood(){
     var out = {};
