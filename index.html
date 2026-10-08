@@ -121,6 +121,16 @@ html,body{overscroll-behavior-y:none;}
 .save-status{font-size:12px; color:var(--muted); flex:1;}
 .save-status.ok{color:var(--success);}
 
+.ex-foot{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px; min-height:16px;}
+.last-line{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); line-height:1.5;}
+.ex-saved{font-size:12px; color:var(--muted); white-space:nowrap; margin-left:auto;}
+.ex-saved.ok{color:var(--success);}
+.ex-hist{margin-top:4px; font-size:12px;}
+.ex-hist summary{cursor:pointer; color:var(--accent-2); list-style:none; padding:4px 0;}
+.ex-hist summary::-webkit-details-marker{display:none;}
+.ex-hist .eh-row{display:flex; gap:10px; padding:3px 0; font-family:'IBM Plex Mono',monospace; color:var(--muted); line-height:1.5;}
+.ex-hist .eh-date{flex:0 0 auto; color:var(--muted-2);}
+
 .history-item{display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-top:1px solid var(--border); font-size:13px;}
 .history-item:first-child{border-top:none;}
 .history-item .d{font-family:'IBM Plex Mono',monospace; color:var(--muted);}
@@ -251,9 +261,9 @@ input,select,textarea{font-size:16px !important;}
       </div>
       <div id="exercise-list"></div>
       <div class="save-row">
-        <button class="btn" id="save-session">Salva allenamento di oggi</button>
+        <button class="btn" id="save-session">Allenamento finito</button>
       </div>
-      <div class="save-status" id="save-status"></div>
+      <div class="save-status" id="save-status">Quello che scrivi si salva da solo. Premi "Allenamento finito" solo alla fine.</div>
     </div>
 
     <div class="card">
@@ -1040,6 +1050,7 @@ input,select,textarea{font-size:16px !important;}
   dayPicker.addEventListener('click', function(e){
     var btn = e.target.closest('.pill');
     if(!btn) return;
+    flushDraft();
     currentDay = btn.dataset.day;
     dayPicker.querySelectorAll('.pill').forEach(function(p){ p.setAttribute('aria-pressed', p===btn?'true':'false'); });
     renderExercises();
@@ -1062,12 +1073,127 @@ input,select,textarea{font-size:16px !important;}
           '<input type="checkbox" class="check" data-field="done" data-set="'+s+'">'+
         '</div>';
       }
+      html += '<div class="ex-foot"><span class="last-line"></span><span class="ex-saved"></span></div>';
+      html += '<div class="ex-hist-slot"></div>';
       html += '</div>';
     });
     document.getElementById('exercise-list').innerHTML = html;
     applyRest();
+    applyLocalDraft();
     applyLastValues();
+    loadDraftFromDb();
   }
+
+  // ---------- salvataggio automatico della seduta in corso ----------
+  var draftTimer = null, dirtyEx = {}, draftStartDate = {};
+  function draftKey(day){ return 'workout-draft-'+day; }
+  function readLocalDraft(day){
+    try{ return JSON.parse(localStorage.getItem(draftKey(day))||'null'); }catch(e){ return null; }
+  }
+  function collectDraft(){
+    var ex = {}, any = false;
+    document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
+      var sets = [];
+      exEl.querySelectorAll('.set-grid').forEach(function(row){
+        if(!row.querySelector('.setnum')) return;
+        var w = row.querySelector('[data-field=weight]').value;
+        var r = row.querySelector('[data-field=reps]').value;
+        var d = row.querySelector('[data-field=done]').checked;
+        if(w || r || d) any = true;
+        sets.push({w:w, r:r, d:!!d});
+      });
+      ex[String(i)] = sets;
+    });
+    return {any:any, ex:ex};
+  }
+  function fillDraft(draft){
+    if(!draft || !draft.ex) return;
+    document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
+      var sets = draft.ex[String(i)] || [];
+      exEl.querySelectorAll('.set-grid').forEach(function(row){
+        var num = row.querySelector('.setnum');
+        if(!num) return;
+        var st = sets[parseInt(num.textContent,10)-1];
+        if(!st) return;
+        row.querySelector('[data-field=weight]').value = st.w || '';
+        row.querySelector('[data-field=reps]').value = st.r || '';
+        row.querySelector('[data-field=done]').checked = !!st.d;
+      });
+    });
+  }
+  function applyLocalDraft(){
+    var d = readLocalDraft(currentDay);
+    if(d){ draftStartDate[currentDay] = d.date; fillDraft(d); }
+  }
+  function loadDraftFromDb(){
+    if(!db) return;
+    var dayAtCall = currentDay;
+    db.doc('drafts/'+dayAtCall).get().then(function(doc){
+      if(dayAtCall !== currentDay || !doc.exists) return;
+      var remote = doc.data();
+      var local = readLocalDraft(dayAtCall);
+      if(local && (local.updated||0) >= (remote.updated||0)) return;
+      if(dirtyExCount() > 0) return;
+      draftStartDate[dayAtCall] = remote.date;
+      fillDraft(remote);
+      try{ localStorage.setItem(draftKey(dayAtCall), JSON.stringify(remote)); }catch(e){}
+    }).catch(function(){});
+  }
+  function dirtyExCount(){ return Object.keys(dirtyEx).length; }
+  function setExSaved(exEl, text, ok){
+    var s = exEl.querySelector('.ex-saved');
+    if(!s) return;
+    s.textContent = text;
+    s.classList.toggle('ok', !!ok);
+  }
+  function scheduleDraft(exEl){
+    if(exEl){
+      dirtyEx[exEl.dataset.ex] = exEl;
+      setExSaved(exEl, 'Salvataggio...', false);
+    }
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(flushDraft, 600);
+  }
+  function flushDraft(){
+    clearTimeout(draftTimer);
+    var pending = dirtyEx; dirtyEx = {};
+    var keys = Object.keys(pending);
+    if(!keys.length) return;
+    var day = currentDay;
+    var c = collectDraft();
+    if(!draftStartDate[day]) draftStartDate[day] = todayISO;
+    var payload = {day:day, date:draftStartDate[day], updated:Date.now(), ex:c.ex};
+    try{ localStorage.setItem(draftKey(day), JSON.stringify(payload)); }catch(e){}
+    if(!db){
+      keys.forEach(function(k){ setExSaved(pending[k], 'Salvato sul telefono', true); });
+      return;
+    }
+    db.doc('drafts/'+day).set(payload).then(function(){
+      keys.forEach(function(k){ setExSaved(pending[k], 'Salvato ✓', true); });
+    }).catch(function(){
+      keys.forEach(function(k){ setExSaved(pending[k], 'Salvato sul telefono, non ancora online', false); });
+    });
+  }
+  function clearDraft(day){
+    try{ localStorage.removeItem(draftKey(day)); }catch(e){}
+    delete draftStartDate[day];
+    if(db){ db.doc('drafts/'+day).delete().catch(function(){}); }
+  }
+  (function(){
+    var list = document.getElementById('exercise-list');
+    function onEdit(e){
+      if(!e.target.closest('.set-grid')) return;
+      scheduleDraft(e.target.closest('.exercise'));
+    }
+    list.addEventListener('input', onEdit);
+    list.addEventListener('change', onEdit);
+    list.addEventListener('focusout', function(e){
+      if(e.target.closest('.set-grid')) flushDraft();
+    });
+    document.addEventListener('visibilitychange', function(){ if(document.hidden) flushDraft(); });
+    window.addEventListener('pagehide', flushDraft);
+  })();
+
   renderExercises();
 
   // Mostra in grigio i kg e le ripetizioni dell'ultima volta per lo stesso giorno
@@ -1076,23 +1202,37 @@ input,select,textarea{font-size:16px !important;}
     var dayAtCall = currentDay;
     db.collection('sessions').orderBy('date','desc').limit(30).get().then(function(qs){
       if(dayAtCall !== currentDay) return;
-      var last = null;
-      qs.docs.some(function(doc){
-        var d = doc.data();
-        if(d.day === dayAtCall){ last = d; return true; }
-        return false;
-      });
-      if(!last) return;
+      var sameDay = qs.docs.map(function(doc){ return doc.data(); }).filter(function(d){ return d.day === dayAtCall; });
+      if(!sameDay.length) return;
+      var last = sameDay[0];
+      function fmtSets(sets){
+        return (sets || []).map(function(st){
+          return (st.weight != null ? st.weight : '—') + '×' + (st.reps != null ? st.reps : '—');
+        }).join(' · ');
+      }
       document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
         var name = WORKOUTS[dayAtCall].exercises[i].name;
         var found = (last.exercises || []).filter(function(e){ return e.name === name; })[0];
-        if(!found) return;
-        found.sets.forEach(function(st, si){
-          var w = exEl.querySelector('[data-field=weight][data-set="'+(si+1)+'"]');
-          var r = exEl.querySelector('[data-field=reps][data-set="'+(si+1)+'"]');
-          if(w && st.weight != null) w.placeholder = st.weight;
-          if(r && st.reps != null) r.placeholder = st.reps;
+        if(found){
+          found.sets.forEach(function(st, si){
+            var w = exEl.querySelector('[data-field=weight][data-set="'+(si+1)+'"]');
+            var r = exEl.querySelector('[data-field=reps][data-set="'+(si+1)+'"]');
+            if(w && st.weight != null) w.placeholder = st.weight;
+            if(r && st.reps != null) r.placeholder = st.reps;
+          });
+          var ll = exEl.querySelector('.last-line');
+          if(ll) ll.textContent = 'Ultima volta ' + fmtDate(last.date).slice(0,5) + ': ' + fmtSets(found.sets);
+        }
+        // storico completo di questo esercizio, aperto qui sotto
+        var rows = [];
+        sameDay.forEach(function(d){
+          var f = (d.exercises || []).filter(function(e){ return e.name === name; })[0];
+          if(f) rows.push('<div class="eh-row"><span class="eh-date">'+fmtDate(d.date).slice(0,5)+'</span><span>'+fmtSets(f.sets)+'</span></div>');
         });
+        var slot = exEl.querySelector('.ex-hist-slot');
+        if(slot && rows.length > 1){
+          slot.innerHTML = '<details class="ex-hist"><summary>Vedi tutte le volte (' + rows.length + ')</summary>' + rows.join('') + '</details>';
+        }
       });
     }).catch(function(){});
   }
@@ -1159,14 +1299,17 @@ input,select,textarea{font-size:16px !important;}
     var exercises = collectSession();
     if(!exercises.length){ status.textContent = 'Segna almeno una serie prima di salvare.'; return; }
     status.textContent = 'Salvataggio...';
+    flushDraft();
+    var finishedDay = currentDay;
     db.collection('sessions').add({
-      date: todayISO,
-      day: currentDay,
-      dayLabel: WORKOUTS[currentDay].label,
+      date: draftStartDate[finishedDay] || todayISO,
+      day: finishedDay,
+      dayLabel: WORKOUTS[finishedDay].label,
       exercises: exercises
     }).then(function(){
-      status.textContent = 'Allenamento salvato.';
+      status.textContent = 'Allenamento salvato nello storico.';
       status.classList.add('ok');
+      clearDraft(finishedDay);
       renderExercises();
       loadSessionHistory();
     }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
@@ -1399,6 +1542,7 @@ input,select,textarea{font-size:16px !important;}
     loadWeightHistory();
     loadFoodDay();
     applyLastValues();
+    loadDraftFromDb();
     loadMenuFromDb();
     loadRestFromDb();
   }
