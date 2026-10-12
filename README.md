@@ -26,6 +26,10 @@ Da quel momento l'app salva davvero, su un database solo tuo.
 - `index.html` — tutta l'app (markup, stile, logica)
 - `firebase-config.js` — le tue chiavi Firebase (non committare quelle vere in un repo pubblico se ci tieni alla privacy: puoi rendere il repo privato)
 
+## Schede modificabili
+
+Nelle pagine **Allenamento** e **Fisio** il pulsante **Modifica schede** permette di creare, rinominare, duplicare, spostare ed eliminare le schede, e di aggiungere, cambiare, riordinare ed eliminare gli esercizi (nome, serie, ripetizioni, recupero in secondi, nota). Durante l'allenamento serie, ripetizioni e recupero sono solo in lettura. Le schede stanno nel documento `settings/schede` di Firestore (con una copia sul dispositivo).
+
 ## Aggiornamenti
 
 Per qualsiasi modifica (nuovi allenamenti, correzioni, nuove sezioni), basta chiederlo a Claude nella chat di Claude: aggiorna il codice e lo pubblica qui.

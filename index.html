@@ -231,6 +231,27 @@ input,select,textarea{font-size:16px !important;}
 .rest-lbl{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--accent-2); font-weight:700;}
 .rest-input{width:120px; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:6px 8px; font-family:'IBM Plex Mono',monospace;}
 .rest-input::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
+.rest-val{font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--fg);}
+.ex-note{font-size:12.5px; color:var(--muted); margin:-2px 0 8px;}
+
+/* schede modificabili */
+.sched-bar{display:flex; flex-direction:column; gap:8px;}
+.sched-bar .btn.small{align-self:flex-start;}
+.ed-lbl{display:block; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted-2); margin:0 0 4px;}
+.ed-in{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 10px; font-family:'Inter',system-ui,sans-serif;}
+.ed-in::placeholder{color:var(--muted-2);}
+.ed-actions{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px;}
+.ed-ex{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-top:12px; display:flex; flex-direction:column; gap:8px;}
+.ed-ex .ed-in{background:var(--surface); }
+.ed-grid{display:grid; grid-template-columns:70px 1fr 1fr; gap:8px;}
+.ed-grid .ed-in{font-family:'IBM Plex Mono',monospace;}
+.ed-foot{display:flex; align-items:center; gap:8px;}
+.ed-ss{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); flex:1;}
+.ed-ss input{width:20px; height:20px; accent-color:var(--accent-2);}
+.ed-btn{background:var(--surface-3); border:1px solid var(--border); color:var(--fg); border-radius:8px; min-width:40px; height:40px; padding:0 10px; font-size:15px; line-height:1;}
+.ed-btn:disabled{opacity:.3;}
+.ed-btn.danger{color:var(--danger);}
+.ed-bottom{display:flex; flex-direction:column; gap:8px; margin-top:14px;}
 </style>
 </head>
 <body>
@@ -254,16 +275,18 @@ input,select,textarea{font-size:16px !important;}
     </div>
 
     <div class="card">
-      <div class="pill-row" id="day-picker">
-        <button class="pill" data-day="tb1" aria-pressed="true">Total Body 1</button>
-        <button class="pill" data-day="tb2" aria-pressed="false">Total Body 2</button>
-        <button class="pill" data-day="tb3" aria-pressed="false">Total Body 3</button>
+      <div class="sched-bar">
+        <div class="pill-row" id="day-picker"></div>
+        <button class="btn secondary small" id="edit-sched" type="button">Modifica schede</button>
       </div>
       <div id="exercise-list"></div>
-      <div class="save-row">
-        <button class="btn" id="save-session">Allenamento finito</button>
+      <div id="sched-editor" hidden></div>
+      <div id="workout-foot">
+        <div class="save-row">
+          <button class="btn" id="save-session">Allenamento finito</button>
+        </div>
+        <div class="save-status" id="save-status">Quello che scrivi si salva da solo. Premi "Allenamento finito" solo alla fine.</div>
       </div>
-      <div class="save-status" id="save-status">Quello che scrivi si salva da solo. Premi "Allenamento finito" solo alla fine.</div>
     </div>
 
     <div class="card">
@@ -406,12 +429,19 @@ input,select,textarea{font-size:16px !important;}
   <section class="panel" id="panel-fisio" hidden>
     <div class="card">
       <h2>Esercizi riabilitativi</h2>
-      <div class="desc">Da fare 3 volte a settimana &middot; segna quelli completati oggi</div>
-      <div class="checklist" id="physio-list"></div>
-      <div class="save-row">
-        <button class="btn secondary" id="save-physio">Segna sessione fisio di oggi</button>
+      <div class="desc">Segna quelli completati oggi &middot; le schede le crei e le cambi da qui</div>
+      <div class="sched-bar">
+        <div class="pill-row" id="physio-picker"></div>
+        <button class="btn secondary small" id="edit-physio" type="button">Modifica schede</button>
       </div>
-      <div class="save-status" id="physio-status"></div>
+      <div class="checklist" id="physio-list"></div>
+      <div id="physio-editor" hidden></div>
+      <div id="physio-foot">
+        <div class="save-row">
+          <button class="btn secondary" id="save-physio">Segna sessione fisio di oggi</button>
+        </div>
+        <div class="save-status" id="physio-status"></div>
+      </div>
     </div>
   </section>
 
@@ -1005,72 +1035,319 @@ input,select,textarea{font-size:16px !important;}
     return html;
   }).join('');
 
-  // ---------- render physio checklist ----------
-  var physioList = document.getElementById('physio-list');
-  var physioIdx = 0;
-  physioList.innerHTML = PHYSIO.map(function(g){
-    var h = '<div class="ci-group"><div class="ci-group-name">'+g.name+'</div>';
-    g.items.forEach(function(it){
-      h += '<label class="check-item"><input type="checkbox" data-physio="'+(physioIdx++)+'">'+
-        '<span><span class="ci-name">'+it.name+'</span><span class="ci-detail">'+it.detail+'</span></span></label>';
-    });
-    return h + '</div>';
-  }).join('');
-
-
-  // ---------- recuperi (uno per esercizio, modificabili e salvati online) ----------
+  // ---------- schede modificabili (allenamento e fisio), salvate online ----------
   var restTimes = {};
   try{ restTimes = JSON.parse(localStorage.getItem('rest-times')||'{}') || {}; }catch(e){ restTimes = {}; }
-  function applyRest(){
-    document.querySelectorAll('#exercise-list .rest-input').forEach(function(inp){
-      inp.value = restTimes[inp.dataset.rest] || '';
+
+  // "90 s", "1 min", "2 minuti" -> secondi (solo per portare i vecchi recuperi nelle schede nuove)
+  function parseRest(v){
+    if(v == null) return null;
+    var s = String(v).toLowerCase().replace(',', '.');
+    var m = s.match(/(\d+(?:\.\d+)?)\s*(min|m\b)/);
+    if(m) return Math.round(parseFloat(m[1]) * 60);
+    m = s.match(/(\d+(?:\.\d+)?)/);
+    return m ? Math.round(parseFloat(m[1])) : null;
+  }
+  function newId(){ return 'x' + Date.now().toString(36) + Math.floor(Math.random()*46656).toString(36); }
+
+  function defaultSchede(rest){
+    rest = rest || {};
+    var all = [];
+    Object.keys(WORKOUTS).forEach(function(k){
+      var w = WORKOUTS[k];
+      all.push({ id:k, nome:w.label, esercizi: w.exercises.map(function(e, i){
+        return { id:k+'-'+(i+1), nome:e.name, serie:3, reps:e.reps, recupero:parseRest(rest[k+'|'+e.name]), ss:!!e.ss, nota:'' };
+      })});
+    });
+    var fis = [], n = 0;
+    PHYSIO.forEach(function(g){
+      g.items.forEach(function(it){
+        n++;
+        var serie = 1, reps = it.detail, m = String(it.detail).match(/^\s*(\d+)\s*[×x]\s*(.+)$/);
+        if(m){ serie = parseInt(m[1],10) || 1; reps = m[2]; }
+        fis.push({ id:'f-'+n, nome:g.name+' — '+it.name, serie:serie, reps:reps, recupero:null, ss:false, nota:'' });
+      });
+    });
+    return { allenamento: all, fisio: [{ id:'fisio1', nome:'Esercizi riabilitativi', esercizi: fis }] };
+  }
+
+  function normList(arr){
+    var seen = {};
+    return (Array.isArray(arr) ? arr : []).map(function(s){
+      s = s || {};
+      var id = String(s.id || newId());
+      while(seen[id]) id = newId();
+      seen[id] = 1;
+      var exSeen = {};
+      return { id:id, nome:String(s.nome == null ? '' : s.nome), esercizi:(Array.isArray(s.esercizi) ? s.esercizi : []).map(function(e){
+        e = e || {};
+        var eid = String(e.id || newId());
+        while(exSeen[eid]) eid = newId();
+        exSeen[eid] = 1;
+        var serie = parseInt(e.serie, 10);
+        var rec = (e.recupero === '' || e.recupero == null) ? null : parseInt(e.recupero, 10);
+        return { id:eid, nome:String(e.nome == null ? '' : e.nome), serie:(serie > 0 ? Math.min(serie, 30) : 3),
+                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, nota:String(e.nota == null ? '' : e.nota) };
+      })};
     });
   }
-  document.getElementById('exercise-list').addEventListener('change', function(e){
-    var inp = e.target.closest('.rest-input');
-    if(!inp) return;
-    var v = inp.value.trim();
-    if(v){ restTimes[inp.dataset.rest] = v; } else { delete restTimes[inp.dataset.rest]; }
-    try{ localStorage.setItem('rest-times', JSON.stringify(restTimes)); }catch(e2){}
-    if(db){ db.doc('settings/recuperi').set({ times: restTimes }).catch(function(){}); }
+  function normalizeSchede(o){
+    o = o || {};
+    return { allenamento: normList(o.allenamento), fisio: normList(o.fisio) };
+  }
+
+  var SCHEDE = null, schedeFromCache = false;
+  try{
+    var cached = JSON.parse(localStorage.getItem('schede-v1') || 'null');
+    if(cached && (cached.allenamento || cached.fisio)){ SCHEDE = normalizeSchede(cached); schedeFromCache = true; }
+  }catch(e){}
+  if(!SCHEDE) SCHEDE = defaultSchede(restTimes);
+
+  var currentDay = SCHEDE.allenamento.length ? SCHEDE.allenamento[0].id : null;
+  var currentPhysio = SCHEDE.fisio.length ? SCHEDE.fisio[0].id : null;
+  var editing = { allenamento:false, fisio:false };
+  var KIND = {
+    allenamento: { picker:'day-picker',    editor:'sched-editor',  list:'exercise-list', btn:'edit-sched',  foot:'workout-foot' },
+    fisio:       { picker:'physio-picker', editor:'physio-editor', list:'physio-list',   btn:'edit-physio', foot:'physio-foot' }
+  };
+  function curId(kind){ return kind === 'allenamento' ? currentDay : currentPhysio; }
+  function setCur(kind, id){ if(kind === 'allenamento') currentDay = id; else currentPhysio = id; }
+  function findSched(kind, id){
+    var l = SCHEDE[kind];
+    for(var i=0;i<l.length;i++){ if(l[i].id === id) return l[i]; }
+    return null;
+  }
+  function curSched(kind){ return findSched(kind, curId(kind)); }
+  function fixCurrent(kind){
+    if(!findSched(kind, curId(kind))) setCur(kind, SCHEDE[kind].length ? SCHEDE[kind][0].id : null);
+  }
+  function schedLabel(s){ return (s.nome && s.nome.trim()) ? s.nome : 'Senza nome'; }
+
+  var schedTimer = null;
+  function setSchedStatus(text, ok){
+    document.querySelectorAll('.sched-status').forEach(function(el){
+      el.textContent = text; el.classList.toggle('ok', !!ok);
+    });
+  }
+  function saveSchede(){
+    try{ localStorage.setItem('schede-v1', JSON.stringify(SCHEDE)); }catch(e){}
+    schedeFromCache = true;
+    clearTimeout(schedTimer);
+    setSchedStatus('Salvataggio...', false);
+    schedTimer = setTimeout(pushSchede, 500);
+  }
+  function pushSchede(){
+    clearTimeout(schedTimer); schedTimer = null;
+    if(!db){ setSchedStatus('Salvato solo su questo dispositivo.', false); return; }
+    db.doc('settings/schede').set({ allenamento:SCHEDE.allenamento, fisio:SCHEDE.fisio, updated:Date.now() })
+      .then(function(){ setSchedStatus('Salvato ✓', true); })
+      .catch(function(){ setSchedStatus('Salvato su questo dispositivo, ma non online.', false); });
+  }
+  window.addEventListener('pagehide', function(){ if(schedTimer) pushSchede(); });
+
+  function renderPickers(){
+    ['allenamento','fisio'].forEach(function(kind){
+      var cur = curId(kind);
+      document.getElementById(KIND[kind].picker).innerHTML = SCHEDE[kind].map(function(s){
+        return '<button class="pill" type="button" data-id="'+escF(s.id)+'" aria-pressed="'+(s.id===cur)+'">'+escF(schedLabel(s))+'</button>';
+      }).join('');
+    });
+  }
+
+  function renderKind(kind){
+    renderPickers();
+    var k = KIND[kind], isEd = editing[kind];
+    document.getElementById(k.btn).textContent = isEd ? 'Fatto' : 'Modifica schede';
+    document.getElementById(k.list).hidden = isEd;
+    document.getElementById(k.foot).hidden = isEd;
+    document.getElementById(k.editor).hidden = !isEd;
+    if(isEd) renderEditor(kind);
+    else if(kind === 'allenamento') renderExercises();
+    else renderPhysio();
+  }
+  function renderAllSchede(){ renderKind('allenamento'); renderKind('fisio'); }
+
+  // ---- editor ----
+  function escA(s){ return escF(s); }
+  function renderEditor(kind){
+    var host = document.getElementById(KIND[kind].editor);
+    var list = SCHEDE[kind];
+    var s = curSched(kind);
+    var h = '';
+    if(!s){
+      h += '<div class="empty">Non c’è nessuna scheda. Creane una.</div>';
+    } else {
+      var idx = list.indexOf(s);
+      h += '<label class="ed-lbl">Nome della scheda</label>';
+      h += '<input type="text" class="ed-in" data-f="snome" value="'+escA(s.nome)+'" placeholder="es. Total Body 1" autocomplete="off">';
+      h += '<div class="ed-actions">'+
+        '<button class="ed-btn" type="button" data-act="sleft" aria-label="Sposta la scheda a sinistra"'+(idx===0?' disabled':'')+'>&#9664;</button>'+
+        '<button class="ed-btn" type="button" data-act="sright" aria-label="Sposta la scheda a destra"'+(idx===list.length-1?' disabled':'')+'>&#9654;</button>'+
+        '<button class="ed-btn" type="button" data-act="sdup">Duplica</button>'+
+        '<button class="ed-btn danger" type="button" data-act="sdel">Elimina scheda</button></div>';
+      s.esercizi.forEach(function(e, i){
+        h += '<div class="ed-ex" data-i="'+i+'">'+
+          '<input type="text" class="ed-in" data-f="nome" value="'+escA(e.nome)+'" placeholder="Nome esercizio" autocomplete="off">'+
+          '<div class="ed-grid">'+
+            '<div><label class="ed-lbl">Serie</label><input type="number" inputmode="numeric" min="1" max="30" class="ed-in" data-f="serie" value="'+e.serie+'"></div>'+
+            '<div><label class="ed-lbl">Ripetizioni</label><input type="text" class="ed-in" data-f="reps" value="'+escA(e.reps)+'" placeholder="es. 10 o max" autocomplete="off"></div>'+
+            '<div><label class="ed-lbl">Recupero (s)</label><input type="number" inputmode="numeric" min="0" class="ed-in" data-f="recupero" value="'+(e.recupero == null ? '' : e.recupero)+'" placeholder="es. 90"></div>'+
+          '</div>'+
+          '<input type="text" class="ed-in" data-f="nota" value="'+escA(e.nota)+'" placeholder="Nota (facoltativa)" autocomplete="off">'+
+          '<div class="ed-foot">'+
+            (kind === 'allenamento' ? '<label class="ed-ss"><input type="checkbox" data-f="ss"'+(e.ss?' checked':'')+'> Superserie</label>' : '<span class="ed-ss"></span>')+
+            '<button class="ed-btn" type="button" data-act="up" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
+            '<button class="ed-btn" type="button" data-act="down" aria-label="Sposta giù"'+(i===s.esercizi.length-1?' disabled':'')+'>&#9660;</button>'+
+            '<button class="ed-btn danger" type="button" data-act="del" aria-label="Elimina esercizio">&#10005;</button>'+
+          '</div></div>';
+      });
+    }
+    h += '<div class="ed-bottom">'+
+      (s ? '<button class="btn secondary" type="button" data-act="add">+ Aggiungi esercizio</button>' : '')+
+      '<button class="btn secondary" type="button" data-act="snew">+ Nuova scheda</button>'+
+      '<div class="save-status sched-status"></div></div>';
+    host.innerHTML = h;
+  }
+
+  function onEditorClick(kind, e){
+    var btn = e.target.closest('[data-act]');
+    if(!btn || btn.disabled) return;
+    var act = btn.dataset.act, list = SCHEDE[kind], s = curSched(kind);
+    var exEl = e.target.closest('.ed-ex'), i = exEl ? parseInt(exEl.dataset.i, 10) : -1;
+    if(act === 'snew'){
+      var ns = { id:newId(), nome:'', esercizi:[{ id:newId(), nome:'', serie:3, reps:'10', recupero:null, ss:false, nota:'' }] };
+      list.push(ns); setCur(kind, ns.id);
+    } else if(!s){
+      return;
+    } else if(act === 'add'){
+      s.esercizi.push({ id:newId(), nome:'', serie:3, reps:'10', recupero:null, ss:false, nota:'' });
+    } else if(act === 'del' && i >= 0){
+      s.esercizi.splice(i, 1);
+    } else if((act === 'up' || act === 'down') && i >= 0){
+      var j = i + (act === 'up' ? -1 : 1);
+      if(j < 0 || j >= s.esercizi.length) return;
+      var t = s.esercizi[i]; s.esercizi[i] = s.esercizi[j]; s.esercizi[j] = t;
+    } else if(act === 'sdup'){
+      var copia = JSON.parse(JSON.stringify(s));
+      copia.id = newId(); copia.nome = (s.nome || 'Scheda') + ' (copia)';
+      copia.esercizi.forEach(function(x){ x.id = newId(); });
+      list.splice(list.indexOf(s)+1, 0, copia); setCur(kind, copia.id);
+    } else if(act === 'sdel'){
+      if(!window.confirm('Eliminare la scheda «'+schedLabel(s)+'»? Lo storico degli allenamenti già fatti resta.')) return;
+      var p = list.indexOf(s);
+      list.splice(p, 1);
+      setCur(kind, list.length ? list[Math.min(p, list.length-1)].id : null);
+    } else if(act === 'sleft' || act === 'sright'){
+      var a = list.indexOf(s), b = a + (act === 'sleft' ? -1 : 1);
+      if(b < 0 || b >= list.length) return;
+      var tmp = list[a]; list[a] = list[b]; list[b] = tmp;
+    } else { return; }
+    saveSchede();
+    renderPickers();
+    renderEditor(kind);
+  }
+  function onEditorInput(kind, e){
+    var f = e.target.dataset.f;
+    var s = curSched(kind);
+    if(!f || !s) return;
+    if(f === 'snome'){
+      s.nome = e.target.value;
+      renderPickers();
+    } else {
+      var exEl = e.target.closest('.ed-ex');
+      if(!exEl) return;
+      var ex = s.esercizi[parseInt(exEl.dataset.i, 10)];
+      if(!ex) return;
+      if(f === 'ss') ex.ss = e.target.checked;
+      else if(f === 'serie'){ var n = parseInt(e.target.value, 10); if(n > 0) ex.serie = Math.min(n, 30); }
+      else if(f === 'recupero'){ var r = parseInt(e.target.value, 10); ex.recupero = (r >= 0) ? r : null; }
+      else ex[f] = e.target.value;
+    }
+    saveSchede();
+  }
+  ['allenamento','fisio'].forEach(function(kind){
+    var host = document.getElementById(KIND[kind].editor);
+    host.addEventListener('click', function(e){ onEditorClick(kind, e); });
+    host.addEventListener('input', function(e){ onEditorInput(kind, e); });
+    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss') onEditorInput(kind, e); });
+    document.getElementById(KIND[kind].picker).addEventListener('click', function(e){
+      var btn = e.target.closest('.pill');
+      if(!btn) return;
+      if(kind === 'allenamento') flushDraft();
+      setCur(kind, btn.dataset.id);
+      renderKind(kind);
+      if(kind === 'allenamento') document.getElementById('save-status').textContent = '';
+    });
+    document.getElementById(KIND[kind].btn).addEventListener('click', function(){
+      if(kind === 'allenamento') flushDraft();
+      editing[kind] = !editing[kind];
+      if(!editing[kind]){
+        // controlla che le schede non abbiano campi vuoti che confondono
+        SCHEDE[kind].forEach(function(s){ s.esercizi = s.esercizi.filter(function(x){ return x.nome.trim(); }); });
+        saveSchede();
+      }
+      fixCurrent(kind);
+      renderKind(kind);
+    });
   });
-  function loadRestFromDb(){
+
+  function loadSchedeFromDb(){
     if(!db) return;
-    db.doc('settings/recuperi').get().then(function(doc){
-      if(!doc.exists) return;
-      restTimes = doc.data().times || {};
-      try{ localStorage.setItem('rest-times', JSON.stringify(restTimes)); }catch(e){}
-      applyRest();
+    db.doc('settings/schede').get().then(function(doc){
+      if(doc.exists){
+        var remote = normalizeSchede(doc.data());
+        if(JSON.stringify(remote) === JSON.stringify(SCHEDE)) return;
+        if(editing.allenamento || editing.fisio || schedTimer) return;
+        flushDraft();
+        SCHEDE = remote;
+        try{ localStorage.setItem('schede-v1', JSON.stringify(SCHEDE)); }catch(e){}
+        schedeFromCache = true;
+        fixCurrent('allenamento'); fixCurrent('fisio');
+        renderAllSchede();
+      } else if(schedeFromCache){
+        pushSchede();
+      } else {
+        // prima volta: porto nel database le schede di partenza, con i recuperi che avevi già messo
+        db.doc('settings/recuperi').get().then(function(r){
+          var rest = r.exists ? ((r.data() || {}).times || {}) : restTimes;
+          SCHEDE = defaultSchede(rest);
+          fixCurrent('allenamento'); fixCurrent('fisio');
+          saveSchede();
+          if(!editing.allenamento && !editing.fisio){ flushDraft(); renderAllSchede(); }
+        }).catch(function(){});
+      }
     }).catch(function(){});
   }
 
-  // ---------- workout day picker + exercise rendering ----------
-  var currentDay = 'tb1';
-  var dayPicker = document.getElementById('day-picker');
-  dayPicker.addEventListener('click', function(e){
-    var btn = e.target.closest('.pill');
-    if(!btn) return;
-    flushDraft();
-    currentDay = btn.dataset.day;
-    dayPicker.querySelectorAll('.pill').forEach(function(p){ p.setAttribute('aria-pressed', p===btn?'true':'false'); });
-    renderExercises();
-    document.getElementById('save-status').textContent = '';
-  });
-
+  // ---------- allenamento: elenco esercizi ----------
   function renderExercises(){
-    var day = WORKOUTS[currentDay];
+    var s = curSched('allenamento');
+    var foot = document.getElementById('workout-foot');
+    if(!s){
+      document.getElementById('exercise-list').innerHTML = '<div class="empty">Nessuna scheda. Premi “Modifica schede” per crearne una.</div>';
+      foot.hidden = true;
+      return;
+    }
+    foot.hidden = editing.allenamento;
+    if(!s.esercizi.length){
+      document.getElementById('exercise-list').innerHTML = '<div class="empty">Questa scheda è vuota. Premi “Modifica schede” per aggiungere esercizi.</div>';
+      return;
+    }
     var html = '';
-    day.exercises.forEach(function(ex, exi){
-      html += '<div class="exercise" data-ex="'+exi+'">';
-      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+ex.name+'</span><span class="ex-target">3× '+ex.reps+'</span></div>';
-      html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><input type="text" class="rest-input" data-rest="'+currentDay+'|'+ex.name+'" placeholder="es. 90 s" autocomplete="off"></div>';
+    s.esercizi.forEach(function(ex, exi){
+      html += '<div class="exercise" data-ex="'+exi+'" data-exid="'+escF(ex.id)+'">';
+      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+escF(ex.nome)+'</span><span class="ex-target">'+ex.serie+'× '+escF(ex.reps)+'</span></div>';
+      if(ex.recupero != null){
+        html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
+      }
+      if(ex.nota){ html += '<div class="ex-note">'+escF(ex.nota)+'</div>'; }
       html += '<div class="set-grid"><span></span><span class="col-lbl">kg</span><span class="col-lbl">reps</span><span class="col-lbl">✓</span></div>';
-      for(var s=1;s<=3;s++){
+      for(var n=1;n<=ex.serie;n++){
         html += '<div class="set-grid">'+
-          '<span class="setnum">'+s+'</span>'+
-          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+s+'">'+
-          '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+s+'">'+
-          '<input type="checkbox" class="check" data-field="done" data-set="'+s+'">'+
+          '<span class="setnum">'+n+'</span>'+
+          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
+          '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
+          '<input type="checkbox" class="check" data-field="done" data-set="'+n+'">'+
         '</div>';
       }
       html += '<div class="ex-foot"><span class="last-line"></span><span class="ex-saved"></span></div>';
@@ -1078,11 +1355,36 @@ input,select,textarea{font-size:16px !important;}
       html += '</div>';
     });
     document.getElementById('exercise-list').innerHTML = html;
-    applyRest();
     applyLocalDraft();
     applyLastValues();
     loadDraftFromDb();
   }
+
+  // ---------- fisio: elenco da spuntare ----------
+  function renderPhysio(){
+    var s = curSched('fisio');
+    var list = document.getElementById('physio-list');
+    var foot = document.getElementById('physio-foot');
+    if(!s){
+      list.innerHTML = '<div class="empty">Nessuna scheda. Premi “Modifica schede” per crearne una.</div>';
+      foot.hidden = true;
+      return;
+    }
+    foot.hidden = editing.fisio;
+    if(!s.esercizi.length){
+      list.innerHTML = '<div class="empty">Questa scheda è vuota. Premi “Modifica schede” per aggiungere esercizi.</div>';
+      return;
+    }
+    list.innerHTML = s.esercizi.map(function(ex, i){
+      var det = ex.serie + '×' + ex.reps;
+      if(ex.recupero != null) det += ' · recupero ' + ex.recupero + ' s';
+      if(ex.nota) det += ' · ' + ex.nota;
+      return '<label class="check-item"><input type="checkbox" data-physio="'+i+'">'+
+        '<span><span class="ci-name">'+escF(ex.nome)+'</span><span class="ci-detail">'+escF(det)+'</span></span></label>';
+    }).join('');
+    document.getElementById('physio-status').textContent = '';
+  }
+  var physioList = document.getElementById('physio-list');
 
   // ---------- salvataggio automatico della seduta in corso ----------
   var draftTimer = null, dirtyEx = {}, draftStartDate = {};
@@ -1102,14 +1404,14 @@ input,select,textarea{font-size:16px !important;}
         if(w || r || d) any = true;
         sets.push({w:w, r:r, d:!!d});
       });
-      ex[String(i)] = sets;
+      ex[exEl.dataset.exid || String(i)] = sets;
     });
     return {any:any, ex:ex};
   }
   function fillDraft(draft){
     if(!draft || !draft.ex) return;
     document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
-      var sets = draft.ex[String(i)] || [];
+      var sets = draft.ex[exEl.dataset.exid] || draft.ex[String(i)] || [];
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         var num = row.querySelector('.setnum');
         if(!num) return;
@@ -1194,7 +1496,7 @@ input,select,textarea{font-size:16px !important;}
     window.addEventListener('pagehide', flushDraft);
   })();
 
-  renderExercises();
+  renderAllSchede();
 
   // Mostra in grigio i kg e le ripetizioni dell'ultima volta per lo stesso giorno
   function applyLastValues(){
@@ -1211,7 +1513,10 @@ input,select,textarea{font-size:16px !important;}
         }).join(' · ');
       }
       document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
-        var name = WORKOUTS[dayAtCall].exercises[i].name;
+        var schedAtCall = findSched('allenamento', dayAtCall);
+        var exDef = schedAtCall && schedAtCall.esercizi[i];
+        if(!exDef) return;
+        var name = exDef.nome;
         var found = (last.exercises || []).filter(function(e){ return e.name === name; })[0];
         if(found){
           found.sets.forEach(function(st, si){
@@ -1238,7 +1543,7 @@ input,select,textarea{font-size:16px !important;}
   }
 
   function collectSession(){
-    var day = WORKOUTS[currentDay];
+    var day = curSched('allenamento') || {esercizi:[]};
     var exList = document.querySelectorAll('#exercise-list .exercise');
     var exercises = [];
     exList.forEach(function(exEl, i){
@@ -1251,7 +1556,7 @@ input,select,textarea{font-size:16px !important;}
           if(w || r || d){ sets.push({weight:w?parseFloat(w):null, reps:r?parseInt(r,10):null, done:!!d}); }
         }
       });
-      if(sets.length){ exercises.push({name:day.exercises[i].name, sets:sets}); }
+      if(sets.length && day.esercizi[i]){ exercises.push({name:day.esercizi[i].nome, sets:sets}); }
     });
     return exercises;
   }
@@ -1301,10 +1606,11 @@ input,select,textarea{font-size:16px !important;}
     status.textContent = 'Salvataggio...';
     flushDraft();
     var finishedDay = currentDay;
+    var finishedSched = curSched('allenamento');
     db.collection('sessions').add({
       date: draftStartDate[finishedDay] || todayISO,
       day: finishedDay,
-      dayLabel: WORKOUTS[finishedDay].label,
+      dayLabel: finishedSched ? schedLabel(finishedSched) : String(finishedDay),
       exercises: exercises
     }).then(function(){
       status.textContent = 'Allenamento salvato nello storico.';
@@ -1319,10 +1625,11 @@ input,select,textarea{font-size:16px !important;}
     var status = document.getElementById('physio-status');
     if(!db){ status.textContent = 'Salvataggio non disponibile in questa vista.'; return; }
     var done = [];
-    physioList.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ if(cb.checked) done.push(PHYSIO_FLAT[i].label); });
+    var ps = curSched('fisio');
+    physioList.querySelectorAll('input[type=checkbox]').forEach(function(cb,i){ if(cb.checked && ps && ps.esercizi[i]) done.push(ps.esercizi[i].nome); });
     if(!done.length){ status.textContent = 'Segna almeno un esercizio prima di salvare.'; return; }
     status.textContent = 'Salvataggio...';
-    db.doc('physio/'+todayISO).set({ date: todayISO, done: done }).then(function(){
+    db.doc('physio/'+todayISO+'_'+ps.id).set({ date: todayISO, scheda: schedLabel(ps), done: done }).then(function(){
       status.textContent = 'Sessione fisio registrata.';
       status.classList.add('ok');
     }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
@@ -1544,7 +1851,7 @@ input,select,textarea{font-size:16px !important;}
     applyLastValues();
     loadDraftFromDb();
     loadMenuFromDb();
-    loadRestFromDb();
+    loadSchedeFromDb();
   }
   boot();
   ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }); });
