@@ -108,6 +108,12 @@ html,body{overscroll-behavior-y:none;}
 .set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
 .set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
 .set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
+.ed-pick{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-top:12px; background:var(--surface-2);}
+.ed-pick-title{font-size:13px; font-weight:600; margin-bottom:6px;}
+.ed-pick-grp{font-size:12px; color:var(--muted); margin:10px 0 2px; text-transform:uppercase; letter-spacing:.04em;}
+.ed-pick-row{display:flex; align-items:center; gap:8px; font-size:14px; padding:5px 0;}
+.ed-pick-row input{width:20px; height:20px; accent-color:var(--accent-2); flex:none;}
+.ed-pick-det{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted);}
 .set-grid.simple{grid-template-columns:1fr 32px;}
 .set-grid.simple .setnum{display:none;}
 .set-grid.simple .simple-lbl{font-size:14px; color:var(--muted);}
@@ -1127,6 +1133,7 @@ input,select,textarea{font-size:16px !important;}
   var currentDay = SCHEDE.allenamento.length ? SCHEDE.allenamento[0].id : null;
   var currentPhysio = SCHEDE.fisio.length ? SCHEDE.fisio[0].id : null;
   var editing = { allenamento:false, fisio:false };
+  var pickOpen = { allenamento:false, fisio:false };
   var KIND = {
     allenamento: { picker:'day-picker',    editor:'sched-editor',  list:'exercise-list', btn:'edit-sched',  foot:'workout-foot' },
     fisio:       { picker:'physio-picker', editor:'physio-editor', list:'physio-list',   btn:'edit-physio', foot:'physio-foot' }
@@ -1224,8 +1231,30 @@ input,select,textarea{font-size:16px !important;}
           '</div></div>';
       });
     }
+    if(s && pickOpen[kind]){
+      h += '<div class="ed-pick"><div class="ed-pick-title">Scegli gli esercizi da prendere dalle altre schede</div>';
+      var anyPick = false;
+      ['allenamento','fisio'].forEach(function(k2){
+        SCHEDE[k2].forEach(function(sc){
+          if(sc === s || !sc.esercizi.length) return;
+          anyPick = true;
+          h += '<div class="ed-pick-grp">'+(k2 === 'fisio' ? 'Fisio' : 'Allenamento')+' · '+escF(schedLabel(sc))+'</div>';
+          sc.esercizi.forEach(function(ex){
+            if(!ex.nome.trim()) return;
+            h += '<label class="ed-pick-row"><input type="checkbox" data-pick="'+k2+'|'+escA(sc.id)+'|'+escA(ex.id)+'"> <span>'+escF(ex.nome)+
+              ' <span class="ed-pick-det">'+ex.serie+'× '+escF(ex.reps)+'</span></span></label>';
+          });
+        });
+      });
+      if(!anyPick) h += '<div class="empty">Non ci sono altre schede con esercizi.</div>';
+      h += '<div class="ed-actions">'+
+        '<button class="ed-btn" type="button" data-act="pickcopy">Copia qui</button>'+
+        '<button class="ed-btn" type="button" data-act="pickmove">Sposta qui</button>'+
+        '<button class="ed-btn" type="button" data-act="pickclose">Chiudi</button></div></div>';
+    }
     h += '<div class="ed-bottom">'+
       (s ? '<button class="btn secondary" type="button" data-act="add">+ Aggiungi esercizio</button>' : '')+
+      (s ? '<button class="btn secondary" type="button" data-act="pickopen">+ Prendi da altre schede</button>' : '')+
       '<button class="btn secondary" type="button" data-act="snew">+ Nuova scheda</button>'+
       '<div class="save-status sched-status"></div></div>';
     host.innerHTML = h;
@@ -1241,6 +1270,31 @@ input,select,textarea{font-size:16px !important;}
       list.push(ns); setCur(kind, ns.id);
     } else if(!s){
       return;
+    } else if(act === 'pickopen'){
+      pickOpen[kind] = true;
+      renderEditor(kind);
+      return;
+    } else if(act === 'pickclose'){
+      pickOpen[kind] = false;
+    } else if(act === 'pickcopy' || act === 'pickmove'){
+      var boxes = e.currentTarget.querySelectorAll('[data-pick]:checked');
+      if(!boxes.length){ window.alert('Spunta prima gli esercizi che vuoi prendere.'); return; }
+      var movedFrom = [];
+      boxes.forEach(function(bx){
+        var pr = bx.dataset.pick.split('|');
+        var src = findSched(pr[0], pr[1]);
+        if(!src) return;
+        var idx = -1;
+        for(var q=0;q<src.esercizi.length;q++){ if(src.esercizi[q].id === pr[2]){ idx = q; break; } }
+        if(idx < 0) return;
+        var copia = JSON.parse(JSON.stringify(src.esercizi[idx]));
+        copia.id = newId();
+        if(kind === 'allenamento' && pr[0] === 'fisio') copia.semplice = true;
+        s.esercizi.push(copia);
+        if(act === 'pickmove') movedFrom.push({src:src, idx:idx});
+      });
+      movedFrom.sort(function(a,b){ return b.idx - a.idx; }).forEach(function(m){ m.src.esercizi.splice(m.idx, 1); });
+      pickOpen[kind] = false;
     } else if(act === 'add'){
       s.esercizi.push({ id:newId(), nome:'', serie:3, reps:'10', recupero:null, ss:false, nota:'' });
     } else if(act === 'del' && i >= 0){
@@ -1304,6 +1358,7 @@ input,select,textarea{font-size:16px !important;}
     document.getElementById(KIND[kind].btn).addEventListener('click', function(){
       if(kind === 'allenamento') flushDraft();
       editing[kind] = !editing[kind];
+      pickOpen[kind] = false;
       if(!editing[kind]){
         // controlla che le schede non abbiano campi vuoti che confondono
         SCHEDE[kind].forEach(function(s){ s.esercizi = s.esercizi.filter(function(x){ return x.nome.trim(); }); });
@@ -1599,15 +1654,38 @@ input,select,textarea{font-size:16px !important;}
     if(b && b.parentNode && b.parentNode.parentNode) b.parentNode.parentNode.removeChild(b.parentNode);
   });
 
+  // una tantum: sposta da «Fisio 2» gli esercizi della spalla (dal «gomito al fianco» fino alla panca inclinata 45/60°) in una scheda «Riabilitazione spalla»
+  function migraSpalla(o){
+    var fisio = o.fisio || [];
+    for(var q=0;q<fisio.length;q++){ if(/riabilitazione\s*spalla/i.test(fisio[q].nome)) return false; }
+    var src = null, pos = -1;
+    for(var i=0;i<fisio.length;i++){ if(/^\s*fisio\s*2\s*$/i.test(fisio[i].nome)){ src = fisio[i]; pos = i; break; } }
+    if(!src) return false;
+    var a = -1, b = -1;
+    for(var j=0;j<src.esercizi.length;j++){
+      var n = src.esercizi[j].nome;
+      if(a < 0 && /gomito/i.test(n) && /fianco/i.test(n)) a = j;
+      if(a >= 0 && j >= a && /panca/i.test(n) && /(45|inclinat)/i.test(n)){ b = j; break; }
+    }
+    if(a < 0) return false;
+    if(b < 0) b = Math.min(a + 4, src.esercizi.length - 1);
+    var presi = src.esercizi.splice(a, b - a + 1);
+    fisio.splice(pos + 1, 0, { id:newId(), nome:'Riabilitazione spalla', esercizi:presi });
+    return true;
+  }
+
   function loadSchedeFromDb(){
     if(!db) return;
     db.doc('settings/schede').get().then(function(doc){
       if(doc.exists){
         var remote = normalizeSchede(doc.data());
-        if(JSON.stringify(remote) === JSON.stringify(SCHEDE)) return;
+        var migrato = false;
+        if(!editing.allenamento && !editing.fisio && !schedTimer) migrato = migraSpalla(remote);
+        if(!migrato && JSON.stringify(remote) === JSON.stringify(SCHEDE)) return;
         if(editing.allenamento || editing.fisio || schedTimer) return;
         flushDraft();
         SCHEDE = remote;
+        if(migrato) saveSchede();
         try{ localStorage.setItem('schede-v1', JSON.stringify(SCHEDE)); }catch(e){}
         schedeFromCache = true;
         fixCurrent('allenamento'); fixCurrent('fisio');
