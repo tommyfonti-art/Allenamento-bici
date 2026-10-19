@@ -108,6 +108,10 @@ html,body{overscroll-behavior-y:none;}
 .set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
 .set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
 .set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
+.set-grid.simple{grid-template-columns:1fr 32px;}
+.set-grid.simple .setnum{display:none;}
+.set-grid.simple .simple-lbl{font-size:14px; color:var(--muted);}
+.ed-opts{display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;}
 .set-grid .check{width:22px; height:22px; accent-color:var(--success); justify-self:center;}
 .col-lbl{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.04em;}
 
@@ -1104,7 +1108,7 @@ input,select,textarea{font-size:16px !important;}
         var serie = parseInt(e.serie, 10);
         var rec = (e.recupero === '' || e.recupero == null) ? null : parseInt(e.recupero, 10);
         return { id:eid, nome:String(e.nome == null ? '' : e.nome), serie:(serie > 0 ? Math.min(serie, 30) : 3),
-                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, nota:String(e.nota == null ? '' : e.nota) };
+                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, semplice:!!e.semplice, nota:String(e.nota == null ? '' : e.nota) };
       })};
     });
   }
@@ -1212,7 +1216,8 @@ input,select,textarea{font-size:16px !important;}
           '</div>'+
           '<input type="text" class="ed-in" data-f="nota" value="'+escA(e.nota)+'" placeholder="Nota (facoltativa)" autocomplete="off">'+
           '<div class="ed-foot">'+
-            (kind === 'allenamento' ? '<label class="ed-ss"><input type="checkbox" data-f="ss"'+(e.ss?' checked':'')+'> Superserie</label>' : '<span class="ed-ss"></span>')+
+            (kind === 'allenamento' ? '<span class="ed-opts"><label class="ed-ss"><input type="checkbox" data-f="ss"'+(e.ss?' checked':'')+'> Superserie</label>'+
+              '<label class="ed-ss"><input type="checkbox" data-f="semplice"'+(e.semplice?' checked':'')+'> Solo spunta (senza tabella serie, kg e ripetizioni)</label></span>' : '<span class="ed-ss"></span>')+
             '<button class="ed-btn" type="button" data-act="up" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
             '<button class="ed-btn" type="button" data-act="down" aria-label="Sposta giù"'+(i===s.esercizi.length-1?' disabled':'')+'>&#9660;</button>'+
             '<button class="ed-btn danger" type="button" data-act="del" aria-label="Elimina esercizio">&#10005;</button>'+
@@ -1276,6 +1281,7 @@ input,select,textarea{font-size:16px !important;}
       var ex = s.esercizi[parseInt(exEl.dataset.i, 10)];
       if(!ex) return;
       if(f === 'ss') ex.ss = e.target.checked;
+      else if(f === 'semplice') ex.semplice = e.target.checked;
       else if(f === 'serie'){ var n = parseInt(e.target.value, 10); if(n > 0) ex.serie = Math.min(n, 30); }
       else if(f === 'recupero'){ var r = parseInt(e.target.value, 10); ex.recupero = (r >= 0) ? r : null; }
       else ex[f] = e.target.value;
@@ -1286,7 +1292,7 @@ input,select,textarea{font-size:16px !important;}
     var host = document.getElementById(KIND[kind].editor);
     host.addEventListener('click', function(e){ onEditorClick(kind, e); });
     host.addEventListener('input', function(e){ onEditorInput(kind, e); });
-    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss') onEditorInput(kind, e); });
+    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss' || e.target.dataset.f === 'semplice') onEditorInput(kind, e); });
     document.getElementById(KIND[kind].picker).addEventListener('click', function(e){
       var btn = e.target.closest('.pill');
       if(!btn) return;
@@ -1643,6 +1649,14 @@ input,select,textarea{font-size:16px !important;}
         html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
       }
       if(ex.nota){ html += '<div class="ex-note">'+escF(ex.nota)+'</div>'; }
+      if(ex.semplice){
+        html += '<div class="set-grid simple"><span class="setnum">1</span>'+
+          '<input type="number" data-field="weight" data-set="1" hidden>'+
+          '<input type="number" data-field="reps" data-set="1" hidden>'+
+          '<span class="simple-lbl">Fatto</span>'+
+          '<input type="checkbox" class="check" data-field="done" data-set="1">'+
+        '</div>';
+      } else {
       html += '<div class="set-grid"><span></span><span class="col-lbl">kg</span><span class="col-lbl">reps</span><span class="col-lbl">✓</span></div>';
       for(var n=1;n<=ex.serie;n++){
         html += '<div class="set-grid">'+
@@ -1651,6 +1665,7 @@ input,select,textarea{font-size:16px !important;}
           '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
           '<input type="checkbox" class="check" data-field="done" data-set="'+n+'">'+
         '</div>';
+      }
       }
       html += '<div class="ex-foot"><span class="last-line"></span><span class="ex-saved"></span></div>';
       html += '<div class="ex-hist-slot"></div>';
@@ -1811,6 +1826,7 @@ input,select,textarea{font-size:16px !important;}
       var last = sameDay[0];
       function fmtSets(sets){
         return (sets || []).map(function(st){
+          if(st.weight == null && st.reps == null) return 'fatto';
           return (st.weight != null ? st.weight : '—') + '×' + (st.reps != null ? st.reps : '—');
         }).join(' · ');
       }
@@ -1879,6 +1895,7 @@ input,select,textarea{font-size:16px !important;}
         var d = doc.data();
         var body = (d.exercises || []).map(function(ex){
           var sets = (ex.sets || []).map(function(st){
+            if(st.weight == null && st.reps == null) return 'fatto ✓';
             return (st.weight != null ? st.weight + ' kg' : '—') + ' × ' + (st.reps != null ? st.reps : '—') + (st.done ? ' ✓' : '');
           }).join('  ·  ');
           return '<div class="hist-ex"><span class="hn">'+ex.name+'</span><span class="hs">'+sets+'</span></div>';
