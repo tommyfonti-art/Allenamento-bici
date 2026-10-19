@@ -8,9 +8,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Allenamento e alimentazione">
-<meta name="theme-color" content="#131110">
+<meta name="theme-color" content="#f3f8fc">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -20,48 +20,19 @@
 <style>
 /* layout: sticky top nav with pill tabs; each tab a stacked-card panel; workout log uses a 3-row set grid per exercise */
 :root{
-  --bg:#131110; --surface:#1c1917; --surface-2:#242019; --surface-3:#2c2620;
-  --fg:#f2ede6; --muted:#a89f92; --muted-2:#6f665a;
-  --accent:#e8963c; --accent-fg:#1b1409;
-  --accent-2:#4fb3a9;
-  --border:#332c24;
-  --danger:#e2574c; --success:#6fbf73;
-  color-scheme: dark;
-}
-@media (prefers-color-scheme: light){
-  :root:not([data-theme="dark"]){
-    --bg:#faf7f2; --surface:#ffffff; --surface-2:#f4efe6; --surface-3:#ece4d5;
-    --fg:#211d18; --muted:#6b6255; --muted-2:#8b8375;
-    --accent:#c97a1f; --accent-fg:#fffaf2;
-    --accent-2:#1f8b80;
-    --border:#e4dccd;
-    --danger:#c23b31; --success:#3f8f45;
-    color-scheme: light;
-  }
-}
-:root[data-theme="light"]{
-  --bg:#faf7f2; --surface:#ffffff; --surface-2:#f4efe6; --surface-3:#ece4d5;
-  --fg:#211d18; --muted:#6b6255; --muted-2:#8b8375;
-  --accent:#c97a1f; --accent-fg:#fffaf2;
-  --accent-2:#1f8b80;
-  --border:#e4dccd;
-  --danger:#c23b31; --success:#3f8f45;
+  --bg:#f3f8fc; --surface:#ffffff; --surface-2:#e9f2f9; --surface-3:#d9e9f4;
+  --fg:#1b2833; --muted:#566a7a; --muted-2:#7d91a1;
+  --accent:#f28c28; --accent-fg:#231300; --accent-ink:#b35900;
+  --accent-2:#1b83c2;
+  --border:#cfe0ec;
+  --danger:#d03a2f; --success:#2f9a4a;
   color-scheme: light;
-}
-:root[data-theme="dark"]{
-  --bg:#131110; --surface:#1c1917; --surface-2:#242019; --surface-3:#2c2620;
-  --fg:#f2ede6; --muted:#a89f92; --muted-2:#6f665a;
-  --accent:#e8963c; --accent-fg:#1b1409;
-  --accent-2:#4fb3a9;
-  --border:#332c24;
-  --danger:#e2574c; --success:#6fbf73;
-  color-scheme: dark;
 }
 *{box-sizing:border-box}
 body{background:var(--bg); color:var(--fg); font-family:'Inter',system-ui,sans-serif; margin:0; padding-inline:16px; padding-block:0 24px; line-height:1.45;}
 h1,h2,h3{font-family:'Oswald',system-ui,sans-serif; letter-spacing:.01em; text-wrap:balance; margin:0;}
 .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
-a{color:var(--accent)}
+a{color:var(--accent-ink)}
 button{font:inherit; cursor:pointer;}
 .wrap{max-width:720px; margin:0 auto;}
 
@@ -79,14 +50,21 @@ html,body{overscroll-behavior-y:none;}
 .panel{padding-top:18px; display:flex; flex-direction:column; gap:14px;}
 .panel[hidden]{display:none;}
 
-.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px;}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; position:relative;}
+.card[hidden]{display:none;}
+.card-del{position:absolute; top:8px; right:8px; width:36px; height:36px; border:1px solid var(--border); background:var(--surface-2); color:var(--muted); border-radius:10px; font-size:15px; line-height:1; padding:0;}
+.card-del:active{color:var(--danger); border-color:var(--danger);}
+.card[data-cid] > .eyebrow, .card[data-cid] > h2{padding-right:44px;}
+.card-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;}
+.card-head h2{margin:0 !important;}
+.hist-toggle{background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:10px; width:44px; height:36px; font-size:15px; line-height:1; padding:0;}
 .card h2{font-size:17px; margin-bottom:4px;}
 .card .desc{font-size:13px; color:var(--muted); margin-bottom:10px;}
-.eyebrow{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:4px;}
+.eyebrow{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-ink); font-weight:600; margin-bottom:4px;}
 
 .pill-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
 .pill{background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:600; color:var(--muted);}
-.pill[aria-pressed="true"]{background:var(--accent-2); color:#0b1f1c; border-color:var(--accent-2);}
+.pill[aria-pressed="true"]{background:var(--accent-2); color:#ffffff; border-color:var(--accent-2);}
 
 .stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:8px; margin-bottom:4px;}
 .stat{background:var(--surface-2); border-radius:10px; padding:10px 10px;}
@@ -177,12 +155,6 @@ html,body{overscroll-behavior-y:none;}
 .food-item{display:flex; align-items:center; gap:8px; padding:6px 0; flex-wrap:wrap;}
 .food-item .fi-name{font-size:13.5px; flex:1; min-width:120px;}
 .food-item .fi-amount{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--muted); white-space:nowrap;}
-.food-item.swapped .fi-name{color:var(--accent-2);}
-.swap-btn{background:var(--surface-2); border:1px solid var(--border); color:var(--muted); border-radius:7px; width:26px; height:26px; font-size:13px; flex:0 0 auto; line-height:1;}
-.swap-btn:hover{color:var(--fg); border-color:var(--accent-2);}
-.swap-select{display:none; width:100%; margin-top:6px; background:var(--surface-2); border:1px solid var(--accent-2); color:var(--fg); border-radius:8px; padding:7px 8px; font-size:13px;}
-.swap-select.open{display:block;}
-.fixed-tag{font-size:10.5px; color:var(--muted-2); font-style:italic;}
 
 .supp-table{width:100%; border-collapse:collapse; font-size:13px;}
 .supp-table td{padding:8px 0; border-bottom:1px solid var(--border); vertical-align:top;}
@@ -192,7 +164,7 @@ html,body{overscroll-behavior-y:none;}
 
 .checklist{display:flex; flex-direction:column; gap:8px;}
 .ci-group{display:flex; flex-direction:column; gap:6px; margin-bottom:6px;}
-.ci-group-name{font-family:'Oswald',system-ui,sans-serif; font-size:14px; letter-spacing:.02em; color:var(--accent); margin-top:6px;}
+.ci-group-name{font-family:'Oswald',system-ui,sans-serif; font-size:14px; letter-spacing:.02em; color:var(--accent-ink); margin-top:6px;}
 .check-item{display:flex; align-items:flex-start; gap:10px; background:var(--surface-2); border-radius:10px; padding:10px 12px;}
 .check-item input{width:20px; height:20px; margin-top:1px; accent-color:var(--success); flex:0 0 auto;}
 .check-item .ci-name{font-weight:600; font-size:13.5px;}
@@ -250,7 +222,8 @@ input,select,textarea{font-size:16px !important;}
 .ex-note{font-size:12.5px; color:var(--muted); margin:-2px 0 8px;}
 
 /* schede modificabili */
-.sched-bar{display:flex; flex-direction:column; gap:8px;}
+.sched-bar{display:flex; flex-direction:column; gap:12px; margin-bottom:18px;}
+.sched-bar .pill-row{margin-bottom:0;}
 .sched-bar .btn.small{align-self:flex-start;}
 .ed-lbl{display:block; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted-2); margin:0 0 4px;}
 .ed-in{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:9px 10px; font-family:'Inter',system-ui,sans-serif;}
@@ -305,35 +278,9 @@ input,select,textarea{font-size:16px !important;}
     </div>
 
     <div class="card">
-      <h2>Storico allenamenti</h2>
+      <div class="card-head"><h2>Storico allenamenti</h2>
+        <button class="hist-toggle" id="hist-toggle" type="button" aria-expanded="true" aria-label="Chiudi lo storico">&#9650;</button></div>
       <div id="session-history"><div class="empty">Caricamento...</div></div>
-    </div>
-  </section>
-
-  <!-- ALIMENTAZIONE -->
-  <section class="panel" id="panel-alimentazione" hidden>
-    <div class="card">
-      <div class="eyebrow">Alimentazione Mattia Saco &middot; Piano nutrizionista &middot; Obiettivo Massa &middot; 24 settimane</div>
-      <h2>Ciclo: 3 giorni Dieta 1 + 1 giorno Dieta 2</h2>
-      <div class="desc">Si ripete per tutta la durata del piano.</div>
-    </div>
-
-    <div class="card">
-      <h2>Giorno 1</h2>
-      <div class="desc">Tocca &#8646; per sostituire un alimento con un equivalente (a parit&agrave; di proteine/carboidrati/grassi).</div>
-      <div id="diet1"></div>
-      <div class="macro-row" id="macro1"></div>
-    </div>
-
-    <div class="card">
-      <h2>Giorno 2</h2>
-      <div id="diet2"></div>
-      <div class="macro-row" id="macro2"></div>
-    </div>
-
-    <div class="card">
-      <h2>Regole generali</h2>
-      <div class="desc">Pasto libero 1 ogni 7 giorni &middot; sale normale &middot; acqua minimo 3 litri al giorno.</div>
     </div>
   </section>
 
@@ -493,6 +440,11 @@ input,select,textarea{font-size:16px !important;}
       <button class="btn secondary" id="menu-reset">Riporta l'ordine iniziale</button>
       <div class="save-status" id="menu-status"></div>
     </div>
+    <div class="card" id="card-riquadri">
+      <h2>Riquadri eliminati</h2>
+      <div class="desc" id="cards-count">Nessun riquadro eliminato.</div>
+      <button class="btn secondary" id="cards-restore" type="button">Ripristina i riquadri eliminati</button>
+    </div>
     <div class="card" id="card-import">
       <h2>Carica una scheda da PDF</h2>
       <div class="desc">Scegli il PDF della scheda: la creo io, con tutti gli esercizi, e la apro subito. Il PDF non viene salvato.</div>
@@ -544,142 +496,6 @@ input,select,textarea{font-size:16px !important;}
       {name:'Abduzione anca seduto (macchina)', reps:'10-15'}
     ]}
   };
-
-  // per-100g/ml nutrition, from le etichette del piano del nutrizionista
-  var FOOD_DB = {
-    albume:            {label:'Albume', cat:'proteina', unit:'g', per100:{kcal:52,  p:11,  c:0.7, g:0.2}},
-    uovo_intero:       {label:'Uovo intero', cat:'proteina', unit:'pz', fixed:true},
-    farina_avena:      {label:'Farina d’avena', cat:'carbo', unit:'g', per100:{kcal:390, p:14,  c:67,  g:7.6}},
-    mirtilli:          {label:'Mirtilli', cat:'frutta', unit:'g', per100:{kcal:57,  p:0.7, c:14,  g:0.3}},
-    cioccolato:        {label:'Cioccolato fondente 70%', cat:'grasso', unit:'g', per100:{kcal:533, p:8,   c:36,  g:42}},
-    whey:              {label:'Whey isolate', cat:'proteina', unit:'g', per100:{kcal:370, p:90,  c:2,   g:1}},
-    ananas:            {label:'Ananas', cat:'frutta', unit:'g', per100:{kcal:50,  p:0.5, c:13,  g:0.1}},
-    riso_basmati:      {label:'Riso basmati (crudo)', cat:'carbo', unit:'g', per100:{kcal:350, p:7.5, c:78,  g:0.6}},
-    olio_evo:          {label:'Olio extravergine d’oliva', cat:'grasso', unit:'g', per100:{kcal:880, p:0,   c:0,   g:100}},
-    broccoli:          {label:'Broccoli', cat:'verdura', unit:'g', per100:{kcal:34,  p:2.8, c:6.6, g:0.4}},
-    petto_pollo:       {label:'Petto di pollo', cat:'proteina', unit:'g', per100:{kcal:110, p:23.3,c:0,   g:1.9}},
-    yogurt_magro:      {label:'Yogurt magro', cat:'proteina', unit:'g', per100:{kcal:36,  p:3.3, c:4,   g:0.9}},
-    zucchine:          {label:'Zucchine', cat:'verdura', unit:'g', per100:{kcal:17,  p:1.2, c:3.1, g:0.3}},
-    petto_tacchino:    {label:'Petto di tacchino', cat:'proteina', unit:'g', per100:{kcal:107, p:24.2,c:0,   g:0.67}},
-    latte_avena:       {label:'Latte di avena', cat:'carbo', unit:'ml', per100:{kcal:47,  p:1,   c:7.5, g:1.5}},
-    burro_arachidi:    {label:'Burro di arachidi', cat:'grasso', unit:'g', per100:{kcal:590, p:25,  c:22,  g:51}},
-    banana:            {label:'Banana', cat:'frutta', unit:'g', per100:{kcal:89,  p:1.1, c:23,  g:0.3}},
-    pasta_bianca:      {label:'Pasta bianca (cruda)', cat:'carbo', unit:'g', per100:{kcal:371, p:13,  c:75,  g:1.5}},
-    carne_macinata:    {label:'Carne macinata magra 95/5', cat:'proteina', unit:'g', per100:{kcal:137, p:21.4,c:0,   g:5.6}},
-    bresaola:          {label:'Bresaola', cat:'proteina', unit:'g', per100:{kcal:151, p:33.1,c:0,   g:2.6}}
-  };
-  var CAT_KEY = {proteina:'p', carbo:'c', grasso:'g', frutta:'c', verdura:null};
-  var CAT_LABEL = {proteina:'proteine', carbo:'carboidrati', grasso:'grassi', frutta:'carboidrati', verdura:'peso'};
-
-  var DIET1 = { label:'Giorno 1', meals:[
-    {name:'Colazione', items:[
-      {food:'albume', amount:200}, {food:'uovo_intero', amount:1},
-      {food:'farina_avena', amount:50}, {food:'mirtilli', amount:100}, {food:'cioccolato', amount:15}
-    ]},
-    {name:'Spuntino', items:[ {food:'whey', amount:40}, {food:'ananas', amount:100} ]},
-    {name:'Pranzo', items:[
-      {food:'riso_basmati', amount:100}, {food:'olio_evo', amount:10}, {food:'broccoli', amount:100}, {food:'petto_pollo', amount:200}
-    ]},
-    {name:'Spuntino', items:[ {food:'yogurt_magro', amount:100}, {food:'cioccolato', amount:25} ]},
-    {name:'Cena', items:[
-      {food:'riso_basmati', amount:100}, {food:'olio_evo', amount:10}, {food:'zucchine', amount:100}, {food:'petto_tacchino', amount:150}
-    ]}
-  ]};
-  var DIET2 = { label:'Giorno 2', meals:[
-    {name:'Colazione', items:[
-      {food:'latte_avena', amount:250}, {food:'farina_avena', amount:50}, {food:'whey', amount:20}, {food:'burro_arachidi', amount:10}
-    ]},
-    {name:'Spuntino', items:[ {food:'whey', amount:40}, {food:'banana', amount:100} ]},
-    {name:'Pranzo', items:[
-      {food:'pasta_bianca', amount:125}, {food:'carne_macinata', amount:170}, {food:'olio_evo', amount:10}, {food:'zucchine', amount:100}
-    ]},
-    {name:'Spuntino', items:[ {food:'bresaola', amount:70} ]},
-    {name:'Cena', items:[
-      {food:'pasta_bianca', amount:125}, {food:'carne_macinata', amount:170}, {food:'olio_evo', amount:10}, {food:'zucchine', amount:100}
-    ]}
-  ]};
-
-  var dietSubs = {};
-  try{ dietSubs = JSON.parse(localStorage.getItem('diet-subs')||'{}'); }catch(e){ dietSubs = {}; }
-  function saveDietSubs(){ try{ localStorage.setItem('diet-subs', JSON.stringify(dietSubs)); }catch(e){} }
-
-  function computeAmount(origFood, origAmount, newFoodKey){
-    var origDef = FOOD_DB[origFood], newDef = FOOD_DB[newFoodKey];
-    if(origDef.cat === 'verdura') return origAmount;
-    var key = CAT_KEY[origDef.cat];
-    var origMacro = origDef.per100[key] * origAmount/100;
-    var newPer100 = newDef.per100[key];
-    if(!newPer100) return origAmount;
-    return Math.round(origMacro/newPer100*100/5)*5;
-  }
-
-  function renderDietDay(containerId, macroId, diet, dayKey){
-    var container = document.getElementById(containerId);
-    var html = '';
-    var totals = {kcal:0,p:0,c:0,g:0};
-    diet.meals.forEach(function(meal, mi){
-      html += '<div class="meal-block"><div class="meal-name">'+meal.name+'</div>';
-      meal.items.forEach(function(item, ii){
-        var slot = dayKey+'-'+mi+'-'+ii;
-        var def = FOOD_DB[item.food];
-        var chosenFood = (dietSubs[slot]&&dietSubs[slot].food) || item.food;
-        var chosenDef = FOOD_DB[chosenFood];
-        var amount = chosenFood===item.food ? item.amount : computeAmount(item.food, item.amount, chosenFood);
-        if(chosenDef.per100){
-          totals.kcal += chosenDef.per100.kcal*amount/100;
-          totals.p += chosenDef.per100.p*amount/100;
-          totals.c += chosenDef.per100.c*amount/100;
-          totals.g += chosenDef.per100.g*amount/100;
-        }
-        var unitLabel = def.unit==='pz' ? '' : def.unit;
-        html += '<div class="food-item'+(chosenFood!==item.food?' swapped':'')+'" data-slot="'+slot+'">';
-        html += '<span class="fi-name">'+chosenDef.label+'</span>';
-        html += '<span class="fi-amount">'+amount+unitLabel+'</span>';
-        if(def.fixed){
-          html += '<span class="fixed-tag">dose fissa</span>';
-        } else {
-          if(item.food==='broccoli' && chosenFood==='broccoli'){ html += '<span class="fixed-tag" style="color:var(--danger)">non gradito</span>'; }
-          html += '<button class="swap-btn" data-slot="'+slot+'" data-orig="'+item.food+'" data-origamt="'+item.amount+'" title="Sostituisci">⇆</button>';
-        }
-        html += '</div>';
-        if(!def.fixed){
-          var origDef = FOOD_DB[item.food];
-          var alts = Object.keys(FOOD_DB).filter(function(k){ return FOOD_DB[k].cat===origDef.cat && !FOOD_DB[k].fixed; });
-          html += '<select class="swap-select" data-slot-select="'+slot+'">';
-          alts.forEach(function(k){
-            html += '<option value="'+k+'"'+(k===chosenFood?' selected':'')+'>'+FOOD_DB[k].label+'</option>';
-          });
-          html += '</select>';
-        }
-      });
-      html += '</div>';
-    });
-    container.innerHTML = html;
-    document.getElementById(macroId).innerHTML =
-      '<div class="macro total">'+Math.round(totals.kcal)+' kcal</div>'+
-      '<div class="macro">P '+totals.p.toFixed(1)+'g</div>'+
-      '<div class="macro">C '+totals.c.toFixed(1)+'g</div>'+
-      '<div class="macro">G '+totals.g.toFixed(1)+'g</div>';
-
-    container.querySelectorAll('.swap-btn').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var sel = container.querySelector('[data-slot-select="'+btn.dataset.slot+'"]');
-        sel.classList.toggle('open');
-      });
-    });
-    container.querySelectorAll('.swap-select').forEach(function(sel){
-      sel.addEventListener('change', function(){
-        var slot = sel.dataset.slotSelect;
-        var newFood = sel.value;
-        var parts = slot.split('-'); var mi=+parts[1], ii=+parts[2];
-        var origItem = diet.meals[mi].items[ii];
-        if(newFood === origItem.food){ delete dietSubs[slot]; }
-        else{ dietSubs[slot] = {food:newFood}; }
-        saveDietSubs();
-        renderDietDay(containerId, macroId, diet, dayKey);
-      });
-    });
-  }
 
   var SUPP_DAILY = [
     ['Omega 3 (alga, vegano)','Mattina · cuore, infiammazione, recupero'],
@@ -795,18 +611,84 @@ input,select,textarea{font-size:16px !important;}
   var PHYSIO_FLAT = [];
   PHYSIO.forEach(function(g){ g.items.forEach(function(it){ PHYSIO_FLAT.push({label:g.name+' — '+it.name}); }); });
 
+  // ---------- riquadri eliminabili ----------
+  var hiddenCards = [];
+  try{ hiddenCards = JSON.parse(localStorage.getItem('cards-hidden') || '[]') || []; }catch(e){ hiddenCards = []; }
+  function cardKey(card){
+    var panel = card.closest('.panel'), ey = card.querySelector('.eyebrow'), h = card.querySelector('h2');
+    return ((panel ? panel.id : 'x') + ':' + (ey ? ey.textContent : '') + '|' + (h ? h.textContent : '')).replace(/\s+/g,' ').trim().slice(0, 90);
+  }
+  function applyHiddenCards(){
+    document.querySelectorAll('.card[data-cid]').forEach(function(c){ c.hidden = hiddenCards.indexOf(c.dataset.cid) >= 0; });
+    var n = document.querySelectorAll('.card[data-cid][hidden]').length;
+    var el = document.getElementById('cards-count');
+    if(el) el.textContent = n ? (n === 1 ? 'C’è 1 riquadro eliminato.' : 'Ci sono ' + n + ' riquadri eliminati.') : 'Nessun riquadro eliminato.';
+    var bt = document.getElementById('cards-restore');
+    if(bt) bt.disabled = !hiddenCards.length;
+  }
+  function saveHiddenCards(){
+    try{ localStorage.setItem('cards-hidden', JSON.stringify(hiddenCards)); }catch(e){}
+    if(db){ db.doc('settings/riquadri').set({ hidden:hiddenCards, updated:Date.now() }).catch(function(){}); }
+  }
+  (function(){
+    document.querySelectorAll('.panel:not(#panel-impostazioni) .card').forEach(function(c){
+      if(!c.querySelector(':scope > .eyebrow')) return;
+      c.dataset.cid = cardKey(c);
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'card-del'; b.textContent = '✕';
+      b.setAttribute('aria-label', 'Elimina riquadro'); b.title = 'Elimina riquadro';
+      c.insertBefore(b, c.firstChild);
+    });
+    document.addEventListener('click', function(e){
+      var b = e.target.closest('.card-del');
+      if(!b) return;
+      var c = b.closest('.card');
+      if(!window.confirm('Eliminare questo riquadro? Puoi ripristinarlo dalle Impostazioni.')) return;
+      if(hiddenCards.indexOf(c.dataset.cid) < 0) hiddenCards.push(c.dataset.cid);
+      saveHiddenCards(); applyHiddenCards();
+    });
+    document.getElementById('cards-restore').addEventListener('click', function(){
+      hiddenCards = []; saveHiddenCards(); applyHiddenCards();
+    });
+    applyHiddenCards();
+  })();
+  function loadCardsFromDb(){
+    if(!db) return;
+    db.doc('settings/riquadri').get().then(function(doc){
+      if(doc.exists){
+        var h = (doc.data() || {}).hidden;
+        if(Array.isArray(h)){ hiddenCards = h; try{ localStorage.setItem('cards-hidden', JSON.stringify(hiddenCards)); }catch(e){} applyHiddenCards(); }
+      } else if(hiddenCards.length){ saveHiddenCards(); }
+    }).catch(function(){});
+  }
+
+  // ---------- storico: freccia per chiudere ----------
+  (function(){
+    var bt = document.getElementById('hist-toggle'), box = document.getElementById('session-history');
+    function set(closed){
+      box.hidden = closed;
+      bt.innerHTML = closed ? '&#9660;' : '&#9650;';
+      bt.setAttribute('aria-expanded', closed ? 'false' : 'true');
+      bt.setAttribute('aria-label', closed ? 'Apri lo storico' : 'Chiudi lo storico');
+      try{ localStorage.setItem('hist-closed', closed ? '1' : '0'); }catch(e){}
+    }
+    bt.addEventListener('click', function(){ set(!box.hidden); });
+    var chiuso = false;
+    try{ chiuso = localStorage.getItem('hist-closed') === '1'; }catch(e){}
+    set(chiuso);
+  })();
+
   // ---------- menu (ordine modificabile dalle Impostazioni) ----------
   var TABS = {
     allenamento:   'Allenamento',
     fisio:         'Fisio',
-    alimentazione: 'Alimentazione Mattia Saco',
     alimclaude:    'Alimentazione Claude',
     diario:        'Diario cibo',
     integratori:   'Integratori',
     bici:          'Bici',
     progressi:     'Progressi'
   };
-  var DEFAULT_ORDER = ['allenamento','fisio','alimentazione','alimclaude','diario','integratori','bici','progressi'];
+  var DEFAULT_ORDER = ['allenamento','fisio','alimclaude','diario','integratori','bici','progressi'];
   var menuOrder = DEFAULT_ORDER.slice();
   var currentTab = 'allenamento';
 
@@ -1036,8 +918,6 @@ input,select,textarea{font-size:16px !important;}
   renderClaude('riposo');
 
   // ---------- render diet ----------
-  renderDietDay('diet1','macro1',DIET1,'d1');
-  renderDietDay('diet2','macro2',DIET2,'d2');
 
   // ---------- render supplements ----------
   function renderSupp(id, rows){
@@ -1978,7 +1858,7 @@ input,select,textarea{font-size:16px !important;}
           }).join('  ·  ');
           return '<div class="hist-ex"><span class="hn">'+ex.name+'</span><span class="hs">'+sets+'</span></div>';
         }).join('');
-        return '<details class="hist"'+(idx===0?' open':'')+'><summary><span>'+ (d.dayLabel||d.day) +' · '+ (d.exercises?d.exercises.length:0) +' esercizi</span><span class="d">'+fmtDate(d.date)+'</span></summary><div class="hist-body">'+body+'</div></details>';
+        return '<details class="hist"><summary><span>'+ (d.dayLabel||d.day) +' · '+ (d.exercises?d.exercises.length:0) +' esercizi</span><span class="d">'+fmtDate(d.date)+'</span></summary><div class="hist-body">'+body+'</div></details>';
       }).join('');
     }).catch(function(){ el.innerHTML = '<div class="empty">Impossibile caricare lo storico.</div>'; });
   }
@@ -2249,6 +2129,7 @@ input,select,textarea{font-size:16px !important;}
     loadDraftFromDb();
     loadMenuFromDb();
     loadSchedeFromDb();
+    loadCardsFromDb();
   }
   boot();
   ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }); });
