@@ -55,6 +55,11 @@ html,body{overscroll-behavior-y:none;}
 .card-del{position:absolute; top:8px; right:8px; width:36px; height:36px; border:1px solid var(--border); background:var(--surface-2); color:var(--muted); border-radius:10px; font-size:15px; line-height:1; padding:0;}
 .card-del:active{color:var(--danger); border-color:var(--danger);}
 .card[data-cid] > .eyebrow, .card[data-cid] > h2{padding-right:44px;}
+#pdf-list .pdf-row{display:flex; align-items:center; gap:8px; padding:10px 0; border-top:1px solid var(--border);}
+#pdf-list .pdf-row:first-child{border-top:none;}
+#pdf-list .pdf-info{flex:1; min-width:0;}
+#pdf-list .pdf-name{font-weight:600; font-size:14px; word-break:break-word;}
+#pdf-list .pdf-meta{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
 .card-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;}
 .card-head h2{margin:0 !important;}
 .hist-toggle{background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:10px; width:44px; height:36px; font-size:15px; line-height:1; padding:0;}
@@ -431,6 +436,20 @@ input,select,textarea{font-size:16px !important;}
   </section>
 
 
+  <!-- PDF -->
+  <section class="panel" id="panel-pdf" hidden>
+    <div class="card">
+      <h2>I miei PDF</h2>
+      <div class="desc">Scegli un PDF: lo salvo così com'è, senza leggerlo né cambiarlo. Poi lo apri quando ti serve.</div>
+      <label class="btn imp-pick" for="pdf-file">Salva un PDF</label>
+      <input type="file" id="pdf-file" accept="application/pdf,.pdf" multiple hidden>
+      <div class="save-status" id="pdf-status"></div>
+    </div>
+    <div class="card">
+      <div id="pdf-list"><div class="empty">Caricamento...</div></div>
+    </div>
+  </section>
+
   <!-- IMPOSTAZIONI -->
   <section class="panel" id="panel-impostazioni" hidden>
     <div class="card">
@@ -662,6 +681,92 @@ input,select,textarea{font-size:16px !important;}
     }).catch(function(){});
   }
 
+  // ---------- PDF salvati così come sono (a pezzi nel database) ----------
+  var PDF_CHUNK = 700000, PDF_MAX = 14 * 1024 * 1024;
+  function pdfSize(n){ return n >= 1048576 ? (n/1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
+  function pdfStatus(t, ok){ var el = document.getElementById('pdf-status'); el.textContent = t; el.classList.toggle('ok', !!ok); }
+  function pdfList(){
+    var box = document.getElementById('pdf-list');
+    if(!db){ box.innerHTML = '<div class="empty">Salvataggio non disponibile in questa vista.</div>'; return; }
+    db.collection('pdfs').orderBy('date','desc').get().then(function(qs){
+      if(qs.empty){ box.innerHTML = '<div class="empty">Nessun PDF salvato ancora.</div>'; return; }
+      box.innerHTML = qs.docs.map(function(doc){
+        var d = doc.data();
+        return '<div class="pdf-row"><div class="pdf-info"><div class="pdf-name">'+escF(d.name)+'</div>'+
+          '<div class="pdf-meta">'+escF(d.day || '')+' · '+pdfSize(d.size || 0)+'</div></div>'+
+          '<button class="ed-btn" type="button" data-pdf-open="'+escF(doc.id)+'">Apri</button>'+
+          '<button class="ed-btn danger" type="button" data-pdf-del="'+escF(doc.id)+'" aria-label="Elimina">&#10005;</button></div>';
+      }).join('');
+    }).catch(function(){ box.innerHTML = '<div class="empty">Impossibile caricare i PDF.</div>'; });
+  }
+  function pdfChunkIds(id, n){ var a = []; for(var i=0;i<n;i++) a.push(id + '_' + i); return a; }
+  function pdfSave(file){
+    return new Promise(function(resolve, reject){
+      if(file.size > PDF_MAX){ reject(new Error('«'+file.name+'» è troppo grande (massimo 14 MB).')); return; }
+      var fr = new FileReader();
+      fr.onerror = function(){ reject(new Error('Non riesco a leggere «'+file.name+'».')); };
+      fr.onload = function(){
+        var b64 = String(fr.result).split(',')[1] || '';
+        var n = Math.ceil(b64.length / PDF_CHUNK) || 1;
+        var id = 'p' + Date.now().toString(36) + Math.floor(Math.random()*1296).toString(36);
+        var jobs = [];
+        for(var i=0;i<n;i++){
+          jobs.push(db.collection('pdfchunks').doc(id+'_'+i).set({ pdf:id, i:i, data:b64.slice(i*PDF_CHUNK, (i+1)*PDF_CHUNK) }));
+        }
+        Promise.all(jobs).then(function(){
+          var now = new Date();
+          return db.collection('pdfs').doc(id).set({ name:file.name, size:file.size, chunks:n, date:now.toISOString(),
+            day: now.toLocaleDateString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric'}) });
+        }).then(resolve).catch(function(){ reject(new Error('Salvataggio di «'+file.name+'» non riuscito.')); });
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function pdfOpen(id){
+    var w = window.open('', '_blank');
+    pdfStatus('Apro il PDF...', false);
+    db.collection('pdfs').doc(id).get().then(function(doc){
+      var d = doc.data();
+      return Promise.all(pdfChunkIds(id, d.chunks).map(function(cid){ return db.collection('pdfchunks').doc(cid).get(); })).then(function(parts){
+        var bin = parts.map(function(x){ return atob(x.data().data); }).join('');
+        var arr = new Uint8Array(bin.length);
+        for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+        var url = URL.createObjectURL(new Blob([arr], {type:'application/pdf'}));
+        if(w) w.location.href = url; else window.location.href = url;
+        pdfStatus('', false);
+      });
+    }).catch(function(){ if(w) w.close(); pdfStatus('Non riesco ad aprire il PDF.', false); });
+  }
+  function pdfDelete(id){
+    if(!window.confirm('Eliminare questo PDF?')) return;
+    db.collection('pdfs').doc(id).get().then(function(doc){
+      var n = doc.exists ? (doc.data().chunks || 0) : 0;
+      return Promise.all(pdfChunkIds(id, n).map(function(cid){ return db.collection('pdfchunks').doc(cid).delete(); }))
+        .then(function(){ return db.collection('pdfs').doc(id).delete(); });
+    }).then(function(){ pdfList(); }).catch(function(){ pdfStatus('Non riesco a eliminarlo.', false); });
+  }
+  document.getElementById('pdf-file').addEventListener('change', function(e){
+    var files = Array.prototype.slice.call(e.target.files || []);
+    e.target.value = '';
+    if(!files.length) return;
+    if(!db){ pdfStatus('Salvataggio non disponibile in questa vista.', false); return; }
+    var i = 0, ok = 0, err = '';
+    (function next(){
+      if(i >= files.length){
+        pdfStatus(err || (ok === 1 ? 'PDF salvato ✓' : ok + ' PDF salvati ✓'), !err);
+        pdfList(); return;
+      }
+      var f = files[i++];
+      if(!(/pdf/i.test(f.type) || /\.pdf$/i.test(f.name))){ err = 'Serve un file PDF.'; next(); return; }
+      pdfStatus('Salvo «'+f.name+'»...', false);
+      pdfSave(f).then(function(){ ok++; next(); }).catch(function(x){ err = x.message; next(); });
+    })();
+  });
+  document.getElementById('pdf-list').addEventListener('click', function(e){
+    var o = e.target.closest('[data-pdf-open]'), d = e.target.closest('[data-pdf-del]');
+    if(o) pdfOpen(o.dataset.pdfOpen); else if(d) pdfDelete(d.dataset.pdfDel);
+  });
+
   // ---------- storico: freccia per chiudere ----------
   (function(){
     var bt = document.getElementById('hist-toggle'), box = document.getElementById('session-history');
@@ -686,9 +791,10 @@ input,select,textarea{font-size:16px !important;}
     diario:        'Diario cibo',
     integratori:   'Integratori',
     bici:          'Bici',
-    progressi:     'Progressi'
+    progressi:     'Progressi',
+    pdf:           'PDF'
   };
-  var DEFAULT_ORDER = ['allenamento','fisio','alimclaude','diario','integratori','bici','progressi'];
+  var DEFAULT_ORDER = ['allenamento','fisio','alimclaude','diario','integratori','bici','progressi','pdf'];
   var menuOrder = DEFAULT_ORDER.slice();
   var currentTab = 'allenamento';
 
@@ -2130,6 +2236,7 @@ input,select,textarea{font-size:16px !important;}
     loadMenuFromDb();
     loadSchedeFromDb();
     loadCardsFromDb();
+    pdfList();
   }
   boot();
   ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }); });
