@@ -114,6 +114,11 @@ html,body{overscroll-behavior-y:none;}
 .btn{background:var(--accent); color:var(--accent-fg); border:none; border-radius:10px; padding:11px 16px; font-weight:700; font-size:14px; width:100%;}
 .btn:active{opacity:.85}
 .btn.secondary{background:var(--surface-2); color:var(--fg); border:1px solid var(--border);}
+.imp-lbl{display:block;font-size:12px;color:var(--muted,#888);margin:10px 0 4px;}
+.imp-in{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg);font-size:15px;}
+.imp-pick{display:block;text-align:center;margin-top:14px;cursor:pointer;box-sizing:border-box;}
+.imp-banner{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px;}
+#imp-status.ok{color:#3a9d5d;}
 .btn.small{width:auto; padding:8px 14px; font-size:13px;}
 .btn:disabled{opacity:.5}
 
@@ -477,6 +482,18 @@ input,select,textarea{font-size:16px !important;}
       <div class="menu-list" id="menu-order-list"></div>
       <button class="btn secondary" id="menu-reset">Riporta l'ordine iniziale</button>
       <div class="save-status" id="menu-status"></div>
+    </div>
+    <div class="card" id="card-import">
+      <h2>Carica una scheda da PDF</h2>
+      <div class="desc">Scegli il PDF della scheda: la creo io, con tutti gli esercizi, e la apro subito. Il PDF non viene salvato.</div>
+      <label class="imp-lbl">Titolo della scheda (se lo lasci vuoto te lo chiedo dopo)</label>
+      <input type="text" id="imp-title" class="imp-in" placeholder="Es. Scheda Biondo ottobre">
+      <label class="imp-lbl">Dove la metto</label>
+      <select id="imp-kind" class="imp-in"><option value="allenamento">Allenamento</option><option value="fisio">Fisioterapia</option></select>
+      <label class="btn imp-pick" for="imp-file">Scegli il PDF e crea la scheda</label>
+      <input type="file" id="imp-file" accept="application/pdf,.pdf" style="display:none">
+      <div class="save-status" id="imp-status"></div>
+      <details id="imp-raw" hidden><summary>Testo letto dal PDF</summary><pre id="imp-raw-text" style="white-space:pre-wrap;font-size:12px"></pre></details>
     </div>
   </section>
 </div>
@@ -1289,6 +1306,291 @@ input,select,textarea{font-size:16px !important;}
       fixCurrent(kind);
       renderKind(kind);
     });
+  });
+
+  // ---------- importazione di una scheda da PDF: lettura del testo ----------
+  // Le righe arrivano da pdf.js come elenco di celle {t, x0, x1}. Si riconoscono due modi di scrivere una scheda:
+  // 1) tabella con intestazioni (Esercizio / Serie / Rip / Recupero ...) 2) righe libere ("Squat 4x8 rec 90''").
+  function impNorm(s){
+    return String(s == null ? '' : s).replace(/[   ​]/g,' ').replace(/[‘’´`′]/g,"'").replace(/[“”″]/g,'"').replace(/\s+/g,' ').trim();
+  }
+  // recupero in secondi: 90'' 1'30 1:30 2' 2 min 45s; un numero senza unità è in secondi se >= 15, altrimenti in minuti
+  function impRec(s){
+    s = impNorm(s).toLowerCase();
+    var m;
+    if((m = s.match(/(\d+)\s*(?:'|min\w*|m\b|:)\s*(\d{1,2})\s*(?:''|"|s\b|sec\w*)?/))) return (+m[1])*60 + (+m[2]);
+    if((m = s.match(/(\d+(?:[.,]\d+)?)\s*(?:''|"|s\b|sec\w*)/))) return Math.round(parseFloat(m[1].replace(',','.')));
+    if((m = s.match(/(\d+(?:[.,]\d+)?)\s*(?:'|min\w*|m\b)/))) return Math.round(parseFloat(m[1].replace(',','.'))*60);
+    if((m = s.match(/(\d+)/))){ var n = +m[1]; return n >= 15 ? n : n*60; }
+    return null;
+  }
+  var IMP_REPS = '(\\d{1,3}(?:\\s*[-–\\/+]\\s*\\d{1,3})*(?:\\s*(?:rip\\w*|reps?|ripetizioni|sec\\w*|s\\b|min\\w*|per\\s+lato|a\\s+lato|x\\s+lato|per\\s+gamba|per\\s+braccio))?|max(?:imum)?\\b|amrap|cedimento|esaurimento)';
+  var IMP_SR = new RegExp('(\\d{1,2})\\s*[x×*]\\s*' + IMP_REPS, 'i');
+  var IMP_S2 = /(?:^|[\s|;,])(?:serie|sets?)\s*[:=]?\s*(\d{1,2})\b/i;
+  var IMP_R2 = new RegExp('(?:ripetizioni|ripet\\.?|reps?|rip\\.?)\\s*[:=]?\\s*' + IMP_REPS, 'i');
+  var IMP_REC_KW = /(?:recupero|recup\.?|rec\.?|rest|pausa|riposo)\s*[:=]?\s*([0-9][0-9\s'":.,]*(?:min\w*|sec\w*|s\b|m\b)?)/i;
+  var IMP_TIME = /(\d+\s*'\s*\d+\s*(?:''|")?|\d+\s*(?:''|"|sec\w*)|\d+\s*s\b|\d+\s*min\w*|\d+\s*')/i;
+  var IMP_DAY = /^(?:giorno|day|allenamento|workout|sessione|seduta|scheda|settimana|week|total\s*body|full\s*body|upper|lower|push|pull|legs|gambe|petto|schiena|spalle|braccia|addominali|core|fase|blocco)\b/i;
+  var IMP_NOTE = /^(?:note?|nota|nb|n\.b\.?|tecnica|esecuzione|cadenza|tempo|tut|carico|consiglio)\b/i;
+
+  function impCleanReps(r){
+    return String(r || '').replace(/\s*(?:rip\w*|reps?|ripetizioni)\b/i, '').replace(/\s*([-–\/+])\s*/g, '$1').replace(/\s+/g,' ').trim();
+  }
+  function impName(s){
+    return impNorm(s).replace(/^[\s•·▪◦●○■□\-–—*>]+/, '')
+      .replace(/^(?:[A-Za-z]\d{1,2}|\d{1,2})\s*[).:\-–]\s*/, '')
+      .replace(/[\s:;,\-–—|.•·]+$/, '').trim();
+  }
+  function impJunk(t){
+    return !t || /^(?:pagina|page|pag\.?)\s*\d+(?:\s*(?:\/|di|of)\s*\d+)?$/i.test(t) || /^\d+\s*(?:\/|di|of)\s*\d+$/.test(t) ||
+      /^[-–—_=.\s]+$/.test(t) || /(?:https?:\/\/|www\.|@[a-z0-9.-]+\.[a-z]{2,})/i.test(t);
+  }
+  function impIsDay(t){
+    if(t.length > 45) return false;
+    return IMP_DAY.test(t) || /^(?:giorno|day)?\s*[A-D1-9]$/i.test(t);
+  }
+  function impLooksName(t){ return /[A-Za-zÀ-ÿ]{3,}/.test(t) && t.length <= 70 && !/^\d+$/.test(t); }
+
+  // riga libera: nome + serie x ripetizioni + (recupero) + (note)
+  function impFree(t){
+    var m = t.match(IMP_SR), serie, reps, a, b;
+    if(m){ serie = +m[1]; reps = m[2]; a = m.index; b = m.index + m[0].length; }
+    else {
+      var s2 = t.match(IMP_S2), r2 = t.match(IMP_R2);
+      if(!(s2 && r2)) return null;
+      serie = +s2[1]; reps = r2[1];
+      a = Math.min(s2.index, r2.index); b = Math.max(s2.index + s2[0].length, r2.index + r2[0].length);
+    }
+    if(!(serie >= 1 && serie <= 30)) return null;
+    var nome = impName(t.slice(0, a)), rest = t.slice(b), rec = null, km = rest.match(IMP_REC_KW);
+    if(km){ rec = impRec(km[1]); rest = rest.replace(km[0], ' '); }
+    else { var tm = rest.match(IMP_TIME); if(tm){ rec = impRec(tm[1]); rest = rest.replace(tm[0], ' '); } }
+    var ss = /\b(?:superserie|super\s*set|ss)\b/i.test(t);
+    rest = rest.replace(/\b(?:superserie|super\s*set|ss)\b/ig, ' ');
+    var nota = impNorm(rest).replace(/^[\s|;,\-–—:]+|[\s|;,\-–—:]+$/g, '');
+    var lettera = (t.match(/^\s*([A-Za-z])\d{1,2}\s*[).:\-–]/) || [])[1] || '';
+    return { nome:nome, serie:serie, reps:impCleanReps(reps), rec:rec, nota:nota, ss:ss, lettera:lettera.toUpperCase() };
+  }
+
+  // intestazione di tabella: restituisce le colonne con la loro posizione
+  var IMP_COLS = [
+    ['sr',   /^(?:serie\s*[x×\/]\s*rip\w*|set\s*[x×]\s*reps?|s\s*x\s*r)$/i],
+    ['serie',/^(?:serie|sets?|s)\.?$/i],
+    ['reps', /^(?:reps?|ripet\w*|rip\.?|ripetizioni)\b/i],
+    ['rec',  /^(?:rec(?:upero)?\.?|pausa|rest|riposo)\b/i],
+    ['nome', /^(?:esercizi[oa]?|nome|movimento|attivit[àa]|exercise)\b/i],
+    ['nota', /^(?:note?|nota|carico|peso|kg|tempo|cadenza|tut|tecnica)\b/i]
+  ];
+  function impHeader(lines){
+    for(var i=0;i<lines.length;i++){
+      var cols = [], roles = {};
+      (lines[i].cells||[]).forEach(function(c){
+        var t = impNorm(c.t);
+        for(var k=0;k<IMP_COLS.length;k++){ if(IMP_COLS[k][1].test(t)){ cols.push({ role:IMP_COLS[k][0], x0:c.x0, xc:(c.x0+c.x1)/2 }); roles[IMP_COLS[k][0]] = 1; break; } }
+      });
+      var nd = (roles.serie?1:0) + (roles.reps?1:0) + (roles.rec?1:0) + (roles.sr?1:0);
+      if(nd >= 2 && cols.length >= 2){
+        var data = cols.filter(function(c){ return c.role !== 'nome'; });
+        var first = Math.min.apply(null, data.map(function(c){ return c.x0; }));
+        return { index:i, cols:data, firstData:first };
+      }
+    }
+    return null;
+  }
+  function impRow(L, H){
+    var f = { nome:[], serie:[], reps:[], rec:[], sr:[], nota:[] };
+    (L.cells||[]).forEach(function(c){
+      var role = 'nome';
+      if(c.x0 >= H.firstData - 4){
+        var cx = (c.x0 + c.x1)/2, best = 1e9;
+        H.cols.forEach(function(a){ var d = Math.abs(cx - a.xc); if(d < best){ best = d; role = a.role; } });
+      }
+      f[role].push(c.t);
+    });
+    var nome = impName(f.nome.join(' ')), serie = null, reps = '', rec = null;
+    if(f.sr.length){ var m = impNorm(f.sr.join(' ')).match(IMP_SR); if(m){ serie = +m[1]; reps = impCleanReps(m[2]); } }
+    if(f.serie.length){ var n = impNorm(f.serie.join(' ')).match(/\d+/); if(n) serie = +n[0]; }
+    if(f.reps.length) reps = impCleanReps(impNorm(f.reps.join(' ')));
+    if(f.rec.length) rec = impRec(f.rec.join(' '));
+    if(!nome || (serie == null && !reps)) return null;
+    if(serie != null && !(serie >= 1 && serie <= 30)) return null;
+    var lettera = (impNorm(f.nome.join(' ')).match(/^([A-Za-z])\d{1,2}\s*[).:\-–]?\s/) || [])[1] || '';
+    return { nome:nome, serie:serie, reps:reps, rec:rec, nota:impNorm(f.nota.join(' ')), ss:false, lettera:lettera.toUpperCase() };
+  }
+
+  // da tutte le righe del PDF a gruppi di esercizi (un gruppo per ogni giorno trovato)
+  function impParse(lines){
+    var H = impHeader(lines), groups = [], cur = null, last = null, pending = '';
+    function grp(){ if(!cur){ cur = { nome:'', esercizi:[] }; groups.push(cur); } return cur; }
+    lines.forEach(function(L, idx){
+      var t = impNorm(L.text);
+      if(impJunk(t)) return;
+      if(H && (idx === H.index || (impHeader([L]) && impHeader([L]).cols.length >= 2))) return;
+      var ex = H ? impRow(L, H) : null;
+      if(!ex) ex = impFree(t);
+      if(ex){
+        if(!ex.nome && pending){ ex.nome = pending; }
+        pending = '';
+        if(ex.nome){ grp().esercizi.push(ex); last = ex; }
+        return;
+      }
+      if(impIsDay(t)){
+        var nome = impName(t);
+        if(!(cur && cur.nome.toLowerCase() === nome.toLowerCase())){ cur = { nome:nome, esercizi:[] }; groups.push(cur); }
+        pending = ''; last = null; return;
+      }
+      if(last && IMP_NOTE.test(t)){ last.nota = (last.nota ? last.nota + ' ' : '') + t.replace(/^[^:]{1,20}:\s*/, ''); return; }
+      if(impLooksName(t)) pending = impName(t);
+    });
+    groups = groups.filter(function(g){ return g.esercizi.length; });
+    // superserie: esercizi consecutivi con la stessa lettera (A1, A2) o segnati come superserie
+    groups.forEach(function(g){
+      var es = g.esercizi;
+      for(var i=0;i<es.length;i++){
+        if(es[i].lettera){
+          var j = i; while(j+1 < es.length && es[j+1].lettera === es[i].lettera) j++;
+          if(j > i){ for(var k=i;k<=j;k++) es[k].ss = true; i = j; }
+        }
+      }
+    });
+    return groups;
+  }
+
+  // da pdf.js (elementi di una pagina) a righe con celle
+  function impLinesFromItems(items){
+    var its = [];
+    items.forEach(function(i){
+      if(!i || typeof i.str !== 'string' || !i.str.trim()) return;
+      its.push({ t:i.str, x:i.transform[4], y:i.transform[5], w:i.width || 0, h:Math.max(6, Math.abs(i.transform[3]) || i.height || 10) });
+    });
+    its.sort(function(a,b){ return b.y - a.y || a.x - b.x; });
+    var rows = [];
+    its.forEach(function(it){
+      var r = rows[rows.length-1];
+      if(r && Math.abs(r.y - it.y) <= 0.5*Math.max(r.h, it.h)) r.items.push(it);
+      else rows.push({ y:it.y, h:it.h, items:[it] });
+    });
+    return rows.map(function(r){
+      r.items.sort(function(a,b){ return a.x - b.x; });
+      var cells = [], c = null, prevEnd = null;
+      r.items.forEach(function(it){
+        var gap = prevEnd == null ? 0 : it.x - prevEnd;
+        if(c && gap <= Math.max(1.0*r.h, 7)){
+          c.t += (gap > 0.12*r.h || /\s$/.test(c.t) || /^\s/.test(it.t) ? ' ' : '') + it.t.trim();
+          c.x1 = it.x + it.w;
+        } else {
+          c = { t:it.t.trim(), x0:it.x, x1:it.x + it.w }; cells.push(c);
+        }
+        prevEnd = it.x + it.w;
+      });
+      return { cells:cells, text:cells.map(function(x){ return x.t; }).join(' ') };
+    });
+  }
+
+  // ---- importazione: dal PDF alla scheda nuova, già aperta ----
+  var impLib = null;
+  function impStatus(msg, ok){
+    var el = document.getElementById('imp-status'); if(!el) return;
+    el.textContent = msg || ''; el.classList.toggle('ok', !!ok);
+  }
+  function impCaricaLibreria(){
+    if(impLib) return impLib;
+    impLib = import('./vendor/pdf.min.mjs').then(function(m){
+      m.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.mjs', document.baseURI).href;
+      return m;
+    }).catch(function(e){ impLib = null; throw e; });
+    return impLib;
+  }
+  function impLeggiPdf(file){
+    return impCaricaLibreria().then(function(lib){
+      return file.arrayBuffer().then(function(buf){
+        return lib.getDocument({ data:new Uint8Array(buf) }).promise;
+      });
+    }).then(function(pdf){
+      var righe = [], p = Promise.resolve();
+      for(var n=1;n<=pdf.numPages;n++){
+        (function(num){
+          p = p.then(function(){ return pdf.getPage(num); })
+               .then(function(page){ return page.getTextContent(); })
+               .then(function(tc){ righe = righe.concat(impLinesFromItems(tc.items)); });
+        })(n);
+      }
+      return p.then(function(){ try{ pdf.destroy(); }catch(e){} return righe; });
+    });
+  }
+  function impEsercizio(e){
+    return { id:newId(), nome:e.nome.replace(/^[A-Za-z]\d{1,2}\s*[).:\-–]?\s+/, ''), serie:(e.serie >= 1 ? Math.min(e.serie, 30) : 3), reps:(e.reps || ''),
+             recupero:(e.rec != null && e.rec >= 0 ? e.rec : null), ss:!!e.ss, nota:e.nota || '' };
+  }
+  function impAvviso(kind, testo){
+    var card = document.getElementById(KIND[kind].picker).closest('.card'); if(!card) return;
+    document.querySelectorAll('.imp-banner').forEach(function(b){ b.parentNode.removeChild(b); });
+    var d = document.createElement('div');
+    d.className = 'imp-banner';
+    d.innerHTML = '<div>'+escF(testo)+'</div><button class="btn secondary small" type="button" data-imp="chiudi">Ho capito</button>';
+    card.insertBefore(d, card.firstChild);
+  }
+  function impCrea(titolo, kind, gruppi){
+    var multi = gruppi.length >= 2;
+    var nuove = gruppi.map(function(g, i){
+      var nome = multi ? titolo + ' – ' + (g.nome || ('parte '+(i+1))) : titolo;
+      return { id:newId(), nome:nome, esercizi:g.esercizi.map(impEsercizio) };
+    });
+    var tot = nuove.reduce(function(s, x){ return s + x.esercizi.length; }, 0);
+    if(kind === 'allenamento') flushDraft();
+    editing[kind] = false;
+    SCHEDE[kind] = SCHEDE[kind].concat(nuove);
+    setCur(kind, nuove[0].id);
+    saveSchede();
+    renderAllSchede();
+    showTab(kind);
+    window.scrollTo(0, 0);
+    impAvviso(kind, multi
+      ? 'Ho creato '+nuove.length+' schede dal PDF ('+tot+' esercizi in tutto). Controlla serie, ripetizioni e recupero: se qualcosa non torna, tocca «Modifica schede».'
+      : 'Scheda «'+titolo+'» creata dal PDF con '+tot+' esercizi. Controlla serie, ripetizioni e recupero: se qualcosa non torna, tocca «Modifica schede».');
+    return nuove;
+  }
+  function impAvvia(file, titolo, kind){
+    impStatus('Leggo il PDF…');
+    var raw = document.getElementById('imp-raw'); if(raw) raw.hidden = true;
+    impLeggiPdf(file).then(function(righe){
+      var testo = righe.map(function(r){ return r.text; }).join('\n');
+      if(!testo.replace(/\s/g,'').length){
+        impStatus('Questo PDF non ha testo (è una foto o una scansione): non riesco a leggerlo. Mandalo qui in chat e lo trascrivo io.');
+        return;
+      }
+      var gruppi = impParse(righe);
+      if(!gruppi.length){
+        impStatus('Non ho trovato esercizi con serie e ripetizioni (per esempio «Squat 4x8»). Qui sotto c\'è il testo che ho letto: se ti sembra normale, mandami il PDF in chat e sistemo la lettura.');
+        document.getElementById('imp-raw-text').textContent = testo.slice(0, 4000);
+        document.getElementById('imp-raw').hidden = false;
+        return;
+      }
+      impCrea(titolo, kind, gruppi);
+      impStatus('Fatto: scheda creata.', true);
+    }).catch(function(e){
+      var pw = e && (e.name === 'PasswordException');
+      impStatus(pw ? 'Il PDF è protetto da password: non riesco ad aprirlo.' : 'Non sono riuscito a leggere il PDF. Riprova o mandalo qui in chat.');
+    });
+  }
+  document.getElementById('imp-file').addEventListener('change', function(e){
+    var f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    if(!(/pdf/i.test(f.type) || /\.pdf$/i.test(f.name))){ impStatus('Serve un file PDF.'); return; }
+    var inp = document.getElementById('imp-title'), titolo = (inp.value || '').trim();
+    if(!titolo){
+      var base = f.name.replace(/\.pdf$/i, '');
+      var r = window.prompt('Che titolo vuoi dare alla scheda?', base);
+      if(r === null){ impStatus(''); return; }
+      titolo = r.trim() || base;
+      inp.value = titolo;
+    }
+    impAvvia(f, titolo, document.getElementById('imp-kind').value === 'fisio' ? 'fisio' : 'allenamento');
+  });
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-imp="chiudi"]');
+    if(b && b.parentNode && b.parentNode.parentNode) b.parentNode.parentNode.removeChild(b.parentNode);
   });
 
   function loadSchedeFromDb(){
