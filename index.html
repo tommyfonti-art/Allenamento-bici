@@ -222,6 +222,28 @@ html,body{overscroll-behavior-y:none;}
 .fl-row input::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
 .fl-add{margin-top:6px;}
 
+/* sezioni personali: documenti, foto, appunti */
+a.btn{display:inline-block; text-decoration:none; text-align:center;}
+.btn.sez-add{display:block; text-align:center; margin-top:12px; cursor:pointer;}
+.sez-list-manage{display:flex; flex-direction:column; gap:8px; margin-bottom:12px;}
+.sez-row{display:flex; flex-wrap:wrap; align-items:center; gap:8px; background:var(--surface-2); border-radius:10px; padding:8px 10px;}
+.sez-input, .sez-note{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:10px; font-family:'Inter',system-ui,sans-serif;}
+.sez-row .sez-input{flex:1 1 160px; width:auto;}
+#card-sezioni .sez-input{margin:4px 0 10px;}
+.sez-lbl{display:block; font-size:12px; color:var(--muted); margin-top:4px;}
+.sez-note{resize:vertical; margin-bottom:10px;}
+.doc-item{border-top:1px solid var(--border); padding:12px 0;}
+.doc-item:first-child{border-top:none; padding-top:0;}
+.doc-head{display:flex; align-items:center; gap:10px;}
+.doc-badge{flex:0 0 auto; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; color:var(--accent-2); border:1px solid var(--accent-2); border-radius:6px; padding:3px 6px;}
+.doc-info{min-width:0;}
+.doc-name{font-weight:600; font-size:14px; overflow-wrap:anywhere;}
+.doc-meta{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
+.doc-actions{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+.doc-view{margin-top:10px;}
+.doc-view-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+.doc-img{width:100%; height:auto; border-radius:10px; border:1px solid var(--border); display:block;}
+
 /* nessuno zoom: campi a 16px e niente doppio tocco */
 html{touch-action:manipulation; -webkit-text-size-adjust:100%;}
 input,select,textarea{font-size:16px !important;}
@@ -477,6 +499,15 @@ input,select,textarea{font-size:16px !important;}
       <div class="menu-list" id="menu-order-list"></div>
       <button class="btn secondary" id="menu-reset">Riporta l'ordine iniziale</button>
       <div class="save-status" id="menu-status"></div>
+    </div>
+    <div class="card" id="card-sezioni">
+      <h2>Sezioni personali</h2>
+      <div class="desc">Crea nuove voci nel menu in alto, dove caricare PDF, foto e appunti (per esempio una scheda di allenamento in PDF). Poi le sposti con le frecce qui sopra.</div>
+      <div class="sez-list-manage" id="sez-manage-list"></div>
+      <label class="sez-lbl" for="sez-new-name">Nome della nuova sezione</label>
+      <input class="sez-input" id="sez-new-name" type="text" maxlength="40" placeholder="Per esempio: Scheda del coach" autocomplete="off">
+      <button class="btn" type="button" id="sez-create">Crea la sezione</button>
+      <div class="save-status" id="sez-manage-status"></div>
     </div>
   </section>
 </div>
@@ -781,20 +812,24 @@ input,select,textarea{font-size:16px !important;}
   };
   var DEFAULT_ORDER = ['allenamento','fisio','alimentazione','alimclaude','diario','integratori','bici','progressi'];
   var menuOrder = DEFAULT_ORDER.slice();
+  var SEZ = [];  // sezioni create dall'utente (vedi più sotto)
   var currentTab = 'allenamento';
 
   function cleanOrder(arr){
     var out = [];
     (arr||[]).forEach(function(id){ if(TABS[id] && out.indexOf(id)<0) out.push(id); });
     DEFAULT_ORDER.forEach(function(id){ if(out.indexOf(id)<0) out.push(id); });
+    SEZ.forEach(function(x){ if(TABS[x.id] && out.indexOf(x.id)<0) out.push(x.id); });
     return out;
   }
+  try{ sezRegister(JSON.parse(localStorage.getItem('sezioni-v1')||'null')); }catch(e){}
   try{ menuOrder = cleanOrder(JSON.parse(localStorage.getItem('menu-order')||'null')); }catch(e){ menuOrder = DEFAULT_ORDER.slice(); }
 
   function showTab(id){
     currentTab = id;
     document.querySelectorAll('.panel').forEach(function(p){ p.hidden = true; });
     document.getElementById('panel-'+id).hidden = false;
+    if(id.indexOf('sez-') === 0) sezLoadDocs(id);
     document.querySelectorAll('#tabs .tab-btn').forEach(function(b){ b.setAttribute('aria-selected', b.dataset.tab===id ? 'true':'false'); });
   }
   function renderTabs(){
@@ -849,6 +884,347 @@ input,select,textarea{font-size:16px !important;}
       refreshMenu();
     }).catch(function(){});
   }
+
+
+  // ---------- sezioni personali: PDF, foto e appunti ----------
+  // L'elenco delle sezioni sta in settings/sezioni (con una copia sul dispositivo).
+  // Ogni documento è diviso in parti da 800 KB: documenti/{id} ha nome, tipo e dimensione,
+  // documenti_parti/{id}_{n} ha i byte. Le foto vengono ridotte prima di salvarle.
+  var SEZ_MAX = 8*1024*1024, SEZ_PARTE = 800000, SEZ_LIMITE = 12;
+  var sezDocs = {};   // id sezione -> elenco dei documenti
+  var sezBlobs = {};  // id documento -> indirizzo del documento già scaricato
+
+  function sezEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function sezById(id){ for(var i=0;i<SEZ.length;i++){ if(SEZ[i].id===id) return SEZ[i]; } return null; }
+  function sezDim(n){ n = n||0; return n < 1048576 ? Math.max(1,Math.round(n/1024))+' KB' : (n/1048576).toFixed(1).replace('.',',')+' MB'; }
+  function sezData(t){ return t ? new Date(t).toLocaleDateString('it-IT') : ''; }
+  function sezSlug(s){ return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'sezione'; }
+
+  function sezRegister(list){
+    Object.keys(TABS).forEach(function(k){ if(k.indexOf('sez-')===0) delete TABS[k]; });
+    SEZ = (list||[]).filter(function(s){ return s && typeof s.id==='string' && s.id.indexOf('sez-')===0 && s.nome; })
+      .map(function(s){ return { id:s.id, nome:String(s.nome), nota:String(s.nota||'') }; });
+    SEZ.forEach(function(s){ TABS[s.id] = s.nome; });
+    menuOrder = cleanOrder(menuOrder);
+  }
+  function sezSave(){
+    try{ localStorage.setItem('sezioni-v1', JSON.stringify(SEZ)); }catch(e){}
+    if(!db) return Promise.resolve();
+    return db.doc('settings/sezioni').set({ lista: SEZ, updated: Date.now() });
+  }
+  function sezStatus(id, msg, ok){
+    var p = document.getElementById('panel-'+id); if(!p) return;
+    var el = p.querySelector('.sez-status'); if(!el) return;
+    el.textContent = msg||''; el.classList.toggle('ok', !!ok);
+  }
+
+  // un pannello per ogni sezione, creato la prima volta
+  function sezPanels(){
+    var wrap = document.querySelector('.wrap'), have = {};
+    Array.prototype.slice.call(document.querySelectorAll('.panel[data-sez]')).forEach(function(p){
+      var id = p.getAttribute('data-sez');
+      if(!sezById(id)){ p.parentNode.removeChild(p); } else { have[id] = 1; }
+    });
+    SEZ.forEach(function(s){
+      if(have[s.id]) return;
+      var sec = document.createElement('section');
+      sec.className = 'panel'; sec.id = 'panel-'+s.id; sec.setAttribute('data-sez', s.id);
+      sec.hidden = (currentTab !== s.id);
+      sec.innerHTML =
+        '<div class="card"><h2 class="sez-title"></h2>'+
+        '<div class="desc">Carica qui PDF e foto: li ritrovi sempre in questa sezione. Dimensione massima 8 MB per documento.</div>'+
+        '<div class="sez-list"></div>'+
+        '<label class="btn sez-add">Aggiungi PDF o foto<input class="sez-file" type="file" accept="application/pdf,image/*" multiple style="display:none"></label>'+
+        '<div class="save-status sez-status"></div></div>'+
+        '<div class="card"><h2>Appunti</h2><div class="desc">Testo libero, per esempio note sulla scheda.</div>'+
+        '<textarea class="sez-note" rows="6" placeholder="Scrivi qui i tuoi appunti"></textarea>'+
+        '<div class="save-row"><button class="btn small" type="button" data-sa="nota">Salva appunti</button><div class="save-status sez-note-status"></div></div></div>';
+      wrap.appendChild(sec);
+    });
+    sezSync();
+  }
+  // titoli e appunti sempre allineati con l'elenco (senza toccare un campo che si sta scrivendo)
+  function sezSync(){
+    SEZ.forEach(function(s){
+      var p = document.getElementById('panel-'+s.id); if(!p) return;
+      p.querySelector('.sez-title').textContent = s.nome;
+      var ta = p.querySelector('.sez-note');
+      if(ta && document.activeElement !== ta && ta.value !== s.nota) ta.value = s.nota;
+      if(sezDocs[s.id] !== undefined) sezRenderList(s.id);
+    });
+  }
+
+  function sezRenderList(id){
+    var p = document.getElementById('panel-'+id); if(!p) return;
+    var box = p.querySelector('.sez-list'), L = sezDocs[id];
+    if(L === undefined){ box.innerHTML = '<div class="desc">Carico…</div>'; return; }
+    if(!L.length){ box.innerHTML = '<div class="desc">Ancora nessun documento.</div>'; return; }
+    box.innerHTML = L.map(function(d){
+      return '<div class="doc-item" data-doc="'+sezEsc(d.id)+'">'+
+        '<div class="doc-head"><span class="doc-badge">'+(d.tipo==='application/pdf'?'PDF':'FOTO')+'</span>'+
+        '<div class="doc-info"><div class="doc-name">'+sezEsc(d.nome)+'</div><div class="doc-meta">'+sezDim(d.dim)+' &middot; '+sezData(d.creato)+'</div></div></div>'+
+        '<div class="doc-actions"><button class="btn small" type="button" data-sa="apri">Apri</button>'+
+        '<button class="btn small secondary" type="button" data-sa="rinomina">Rinomina</button>'+
+        '<button class="btn small secondary" type="button" data-sa="elimina">Elimina</button></div>'+
+        '<div class="doc-view"></div></div>';
+    }).join('');
+  }
+  function sezLoadDocs(id){
+    if(!db){ sezDocs[id] = []; sezRenderList(id); sezStatus(id, 'Per vedere i documenti serve il collegamento a Firebase.'); return; }
+    if(sezDocs[id] === undefined) sezRenderList(id);
+    db.collection('documenti').where('sez','==',id).get().then(function(qs){
+      var L = [];
+      qs.forEach(function(d){ var x = d.data(); x.id = d.id; L.push(x); });
+      L.sort(function(a,b){ return (b.creato||0) - (a.creato||0); });
+      sezDocs[id] = L; sezRenderList(id);
+    }).catch(function(){
+      if(sezDocs[id] === undefined) sezDocs[id] = [];
+      sezRenderList(id); sezStatus(id, 'Non riesco a leggere i documenti. Riprova tra poco.');
+    });
+  }
+
+  // ---- caricamento ----
+  function sezTipo(f){
+    var t = (f.type||'').toLowerCase();
+    if(t === 'application/pdf' || /\.pdf$/i.test(f.name||'')) return 'application/pdf';
+    if(/^image\//.test(t)) return t;
+    if(/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name||'')) return 'image/jpeg';
+    return '';
+  }
+  function sezRiduci(f){
+    return new Promise(function(res){
+      if(!/^image\/(jpeg|png|webp)$/.test(f.type)) return res({ blob:f, nome:f.name });
+      var url = URL.createObjectURL(f), img = new Image();
+      img.onload = function(){
+        var k = Math.min(1, 2000/Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.naturalWidth*k)); c.height = Math.max(1, Math.round(img.naturalHeight*k));
+        var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
+        c.toBlob(function(b){
+          URL.revokeObjectURL(url);
+          if(b && b.size < f.size) res({ blob:b, nome:(f.name||'foto').replace(/\.[^.]+$/,'')+'.jpg' }); else res({ blob:f, nome:f.name });
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); res({ blob:f, nome:f.name }); };
+      img.src = url;
+    });
+  }
+  function sezBytes(b){
+    if(b.arrayBuffer) return b.arrayBuffer().then(function(a){ return new Uint8Array(a); });
+    return new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(new Uint8Array(r.result)); }; r.onerror = rej; r.readAsArrayBuffer(b); });
+  }
+  function sezNuovoId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function sezSalvaDocumento(sez, nome, tipo, blob){
+    var docId = sezNuovoId(), scritte = 0;
+    return sezBytes(blob).then(function(u8){
+      var n = Math.max(1, Math.ceil(u8.length / SEZ_PARTE)), i = 0;
+      function parte(){
+        if(i >= n) return Promise.resolve();
+        sezStatus(sez, 'Carico «'+nome+'» (parte '+(i+1)+' di '+n+')…');
+        var a = i*SEZ_PARTE, pezzo = u8.subarray(a, Math.min(u8.length, a+SEZ_PARTE));
+        return db.doc('documenti_parti/'+docId+'_'+i).set({ doc:docId, i:i, dati: firebase.firestore.Blob.fromUint8Array(pezzo) }).then(function(){ scritte++; i++; return parte(); });
+      }
+      return parte().then(function(){
+        return db.doc('documenti/'+docId).set({ sez:sez, nome:nome, tipo:tipo, dim:u8.length, parti:n, creato:Date.now() });
+      });
+    }).catch(function(e){
+      for(var k=0;k<scritte;k++){ db.doc('documenti_parti/'+docId+'_'+k).delete().catch(function(){}); }
+      throw e;
+    });
+  }
+  function sezCarica(id, files){
+    if(!db){ sezStatus(id, 'Per caricare documenti serve il collegamento a Firebase.'); return; }
+    var coda = Array.prototype.slice.call(files), fatti = 0, errori = [];
+    function avanti(){
+      var f = coda.shift();
+      if(!f){
+        var msg = errori.length ? errori.join(' ') : (fatti===1 ? 'Documento caricato.' : fatti+' documenti caricati.');
+        sezStatus(id, msg, !errori.length);
+        sezLoadDocs(id);
+        return;
+      }
+      var tipo = sezTipo(f);
+      if(!tipo){ errori.push('«'+f.name+'»: formato non supportato (servono PDF o foto).'); return avanti(); }
+      sezStatus(id, 'Preparo «'+f.name+'»…');
+      var pronto = tipo === 'application/pdf' ? Promise.resolve({ blob:f, nome:f.name }) : sezRiduci(f);
+      pronto.then(function(r){
+        if(r.blob.size > SEZ_MAX) throw new Error('«'+f.name+'» è troppo grande (massimo 8 MB).');
+        var t = tipo === 'application/pdf' ? tipo : (r.blob.type && /^image\//.test(r.blob.type) ? r.blob.type : tipo);
+        return sezSalvaDocumento(id, r.nome || f.name, t, r.blob);
+      }).then(function(){ fatti++; avanti(); }, function(e){
+        errori.push(e && /troppo grande/.test(e.message||'') ? e.message : '«'+f.name+'»: non sono riuscito a salvarlo. Riprova.');
+        avanti();
+      });
+    }
+    avanti();
+  }
+
+  // ---- apertura, nome, eliminazione ----
+  function sezNomeFile(d){
+    var n = d.nome || 'documento';
+    if(d.tipo === 'application/pdf' && !/\.pdf$/i.test(n)) n += '.pdf';
+    else if(d.tipo !== 'application/pdf' && !/\.[a-z0-9]{3,4}$/i.test(n)) n += '.jpg';
+    return n;
+  }
+  function sezMostra(view, d, url){
+    var h = '';
+    if(d.tipo === 'application/pdf'){
+      h += '<a class="btn small" href="'+url+'" target="_blank" rel="noopener">Apri il PDF</a>';
+    } else {
+      h += '<img class="doc-img" src="'+url+'" alt="'+sezEsc(d.nome)+'">'+
+           '<a class="btn small" href="'+url+'" target="_blank" rel="noopener">Apri a tutto schermo</a>';
+    }
+    h += '<a class="btn small secondary" href="'+url+'" download="'+sezEsc(sezNomeFile(d))+'">Scarica</a>'+
+         '<button class="btn small secondary" type="button" data-sa="chiudi">Chiudi</button>';
+    view.innerHTML = '<div class="doc-view-row">'+h+'</div>';
+  }
+  function sezApri(id, docId, view){
+    var d = (sezDocs[id]||[]).filter(function(x){ return x.id === docId; })[0];
+    if(!d) return;
+    if(sezBlobs[docId]){ sezMostra(view, d, sezBlobs[docId]); return; }
+    view.innerHTML = '<div class="desc">Carico…</div>';
+    var letture = [];
+    for(var i=0;i<(d.parti||1);i++){ letture.push(db.doc('documenti_parti/'+docId+'_'+i).get()); }
+    Promise.all(letture).then(function(snaps){
+      var pezzi = snaps.map(function(s){ if(!s.exists) throw new Error('mancante'); return s.data().dati.toUint8Array(); });
+      var url = URL.createObjectURL(new Blob(pezzi, { type:d.tipo }));
+      sezBlobs[docId] = url; sezMostra(view, d, url);
+    }).catch(function(){ view.innerHTML = '<div class="desc">Non riesco ad aprire il documento. Riprova tra poco.</div>'; });
+  }
+  function sezEliminaDoc(id, d){
+    var cancella = [db.doc('documenti/'+d.id).delete()];
+    for(var i=0;i<(d.parti||1);i++){ cancella.push(db.doc('documenti_parti/'+d.id+'_'+i).delete()); }
+    if(sezBlobs[d.id]){ try{ URL.revokeObjectURL(sezBlobs[d.id]); }catch(e){} delete sezBlobs[d.id]; }
+    return Promise.all(cancella);
+  }
+
+  // ---- gestione dalle Impostazioni ----
+  function sezGestione(msg, ok){
+    var el = document.getElementById('sez-manage-status'); if(!el) return;
+    el.textContent = msg||''; el.classList.toggle('ok', !!ok);
+  }
+  function sezRenderGestione(){
+    var box = document.getElementById('sez-manage-list'); if(!box) return;
+    if(!SEZ.length){ box.innerHTML = '<div class="desc">Non hai ancora creato nessuna sezione.</div>'; return; }
+    box.innerHTML = SEZ.map(function(s){
+      return '<div class="sez-row" data-id="'+sezEsc(s.id)+'"><input class="sez-input sez-rename" type="text" maxlength="40" value="'+sezEsc(s.nome)+'" aria-label="Nome della sezione">'+
+        '<button class="btn small secondary" type="button" data-sg="salva">Salva nome</button>'+
+        '<button class="btn small secondary" type="button" data-sg="elimina">Elimina</button></div>';
+    }).join('');
+  }
+  function sezCrea(){
+    var inp = document.getElementById('sez-new-name'), nome = (inp.value||'').trim();
+    if(!nome){ sezGestione('Scrivi il nome della nuova sezione.'); return; }
+    if(SEZ.length >= SEZ_LIMITE){ sezGestione('Hai raggiunto il massimo di '+SEZ_LIMITE+' sezioni.'); return; }
+    var uguale = Object.keys(TABS).some(function(k){ return TABS[k].toLowerCase() === nome.toLowerCase(); });
+    if(uguale){ sezGestione('Esiste già una voce del menu con questo nome.'); return; }
+    var base = 'sez-'+sezSlug(nome), id = base, k = 2;
+    while(TABS[id]){ id = base+'-'+k; k++; }
+    SEZ.push({ id:id, nome:nome, nota:'' }); TABS[id] = nome;
+    menuOrder = cleanOrder(menuOrder);
+    inp.value = '';
+    sezPanels(); refreshMenu(); sezRenderGestione();
+    saveMenuOrder();
+    sezSave().then(function(){ sezGestione('Sezione «'+nome+'» creata: la trovi nel menu in alto.', true); })
+      .catch(function(){ sezGestione('Creata su questo dispositivo, ma non salvata online.'); });
+  }
+  function sezRinomina(id, nome){
+    var s = sezById(id); nome = (nome||'').trim();
+    if(!s) return;
+    if(!nome){ sezGestione('Il nome non può essere vuoto.'); return; }
+    var uguale = Object.keys(TABS).some(function(k){ return k !== id && TABS[k].toLowerCase() === nome.toLowerCase(); });
+    if(uguale){ sezGestione('Esiste già una voce del menu con questo nome.'); return; }
+    s.nome = nome; TABS[id] = nome;
+    sezSync(); refreshMenu();
+    sezSave().then(function(){ sezGestione('Nome salvato.', true); }).catch(function(){ sezGestione('Salvato su questo dispositivo, ma non online.'); });
+  }
+  function sezElimina(id){
+    var s = sezById(id); if(!s) return;
+    if(!db){ sezGestione('Per eliminare una sezione serve il collegamento a Firebase.'); return; }
+    if(!window.confirm('Eliminare la sezione «'+s.nome+'» con tutti i suoi documenti e appunti? Non si può annullare.')) return;
+    sezGestione('Elimino…');
+    db.collection('documenti').where('sez','==',id).get().then(function(qs){
+      var lavori = [];
+      qs.forEach(function(d){ var x = d.data(); x.id = d.id; lavori.push(sezEliminaDoc(id, x)); });
+      return Promise.all(lavori);
+    }).then(function(){
+      SEZ = SEZ.filter(function(x){ return x.id !== id; }); delete TABS[id]; delete sezDocs[id];
+      menuOrder = cleanOrder(menuOrder.filter(function(x){ return x !== id; }));
+      var wasHere = currentTab === id;
+      sezPanels(); refreshMenu(); sezRenderGestione();
+      if(wasHere) showTab('impostazioni');
+      saveMenuOrder();
+      return sezSave().then(function(){ sezGestione('Sezione eliminata.', true); });
+    }).catch(function(){ sezGestione('Non sono riuscito a eliminare tutto. Riprova.'); });
+  }
+
+  document.querySelector('.wrap').addEventListener('click', function(e){
+    var b = e.target.closest('[data-sa],[data-sg],#sez-create'); if(!b) return;
+    if(b.id === 'sez-create'){ sezCrea(); return; }
+    var sg = b.getAttribute('data-sg');
+    if(sg){
+      var row = b.closest('.sez-row'), rid = row && row.getAttribute('data-id');
+      if(sg === 'salva') sezRinomina(rid, row.querySelector('.sez-rename').value);
+      else if(sg === 'elimina') sezElimina(rid);
+      return;
+    }
+    var panel = b.closest('.panel[data-sez]'); if(!panel) return;
+    var id = panel.getAttribute('data-sez'), act = b.getAttribute('data-sa');
+    if(act === 'nota'){
+      var s = sezById(id); if(!s) return;
+      s.nota = panel.querySelector('.sez-note').value;
+      var st = panel.querySelector('.sez-note-status'); st.classList.remove('ok'); st.textContent = '';
+      sezSave().then(function(){ st.textContent = db ? 'Appunti salvati.' : 'Salvati solo su questo dispositivo.'; st.classList.add('ok'); })
+        .catch(function(){ st.textContent = 'Salvati su questo dispositivo, ma non online.'; });
+      return;
+    }
+    var item = b.closest('.doc-item'); if(!item) return;
+    var docId = item.getAttribute('data-doc'), d = (sezDocs[id]||[]).filter(function(x){ return x.id === docId; })[0];
+    if(!d) return;
+    if(act === 'apri') sezApri(id, docId, item.querySelector('.doc-view'));
+    else if(act === 'chiudi') item.querySelector('.doc-view').innerHTML = '';
+    else if(act === 'rinomina'){
+      var nuovo = window.prompt('Nuovo nome del documento', d.nome);
+      if(nuovo === null) return;
+      nuovo = nuovo.trim(); if(!nuovo || nuovo === d.nome) return;
+      db.doc('documenti/'+docId).update({ nome:nuovo }).then(function(){ d.nome = nuovo; sezRenderList(id); sezStatus(id, 'Nome salvato.', true); })
+        .catch(function(){ sezStatus(id, 'Non sono riuscito a cambiare il nome. Riprova.'); });
+    } else if(act === 'elimina'){
+      if(!window.confirm('Eliminare «'+d.nome+'»? Non si può annullare.')) return;
+      sezStatus(id, 'Elimino…');
+      sezEliminaDoc(id, d).then(function(){
+        sezDocs[id] = (sezDocs[id]||[]).filter(function(x){ return x.id !== docId; });
+        sezRenderList(id); sezStatus(id, 'Documento eliminato.', true);
+      }).catch(function(){ sezStatus(id, 'Non sono riuscito a eliminarlo. Riprova.'); });
+    }
+  });
+  document.querySelector('.wrap').addEventListener('change', function(e){
+    var t = e.target;
+    if(t.classList && t.classList.contains('sez-file')){
+      var panel = t.closest('.panel[data-sez]');
+      if(panel && t.files && t.files.length) sezCarica(panel.getAttribute('data-sez'), t.files);
+      t.value = '';
+    } else if(t.classList && t.classList.contains('sez-note')){
+      var p2 = t.closest('.panel[data-sez]'), s2 = p2 && sezById(p2.getAttribute('data-sez'));
+      if(s2 && s2.nota !== t.value){ s2.nota = t.value; sezSave().catch(function(){}); }
+    }
+  });
+
+  function loadSezioniFromDb(dopo){
+    if(!db){ if(dopo) dopo(); return; }
+    db.doc('settings/sezioni').get().then(function(doc){
+      if(doc.exists){
+        var l = (doc.data()||{}).lista || [];
+        if(JSON.stringify(l) !== JSON.stringify(SEZ)){
+          sezRegister(l);
+          try{ localStorage.setItem('sezioni-v1', JSON.stringify(SEZ)); }catch(e){}
+          sezPanels(); refreshMenu(); sezRenderGestione();
+        }
+      } else if(SEZ.length){ sezSave().catch(function(){}); }
+    }).catch(function(){}).then(function(){ if(dopo) dopo(); });
+  }
+  sezPanels(); sezRenderGestione();
+
   refreshMenu();
 
   // ---------- alimentazione Claude (tre schemi) ----------
@@ -1850,7 +2226,7 @@ input,select,textarea{font-size:16px !important;}
     loadFoodDay();
     applyLastValues();
     loadDraftFromDb();
-    loadMenuFromDb();
+    loadSezioniFromDb(loadMenuFromDb);
     loadSchedeFromDb();
   }
   boot();

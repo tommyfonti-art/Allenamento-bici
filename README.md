@@ -30,6 +30,10 @@ Da quel momento l'app salva davvero, su un database solo tuo.
 
 Nelle pagine **Allenamento** e **Fisio** il pulsante **Modifica schede** permette di creare, rinominare, duplicare, spostare ed eliminare le schede, e di aggiungere, cambiare, riordinare ed eliminare gli esercizi (nome, serie, ripetizioni, recupero in secondi, nota). Durante l'allenamento serie, ripetizioni e recupero sono solo in lettura. Le schede stanno nel documento `settings/schede` di Firestore (con una copia sul dispositivo).
 
+## Sezioni personali (PDF, foto, appunti)
+
+In **Impostazioni → Sezioni personali** si creano nuove voci del menu in alto (si rinominano, si eliminano e si spostano con le frecce di «Ordine del menu»). In ogni sezione si caricano PDF e foto (massimo 8 MB l'uno; le foto vengono ridotte a 2000 pixel), che si possono aprire, scaricare, rinominare ed eliminare, e c'è un riquadro per gli appunti. L'elenco delle sezioni sta in `settings/sezioni`; ogni documento sta in `documenti/{id}` e i suoi byte, divisi in parti da 800 KB, in `documenti_parti/{id}_{n}` (nessun bisogno di Firebase Storage).
+
 ## Aggiornamenti
 
 Per qualsiasi modifica (nuovi allenamenti, correzioni, nuove sezioni), basta chiederlo a Claude nella chat di Claude: aggiorna il codice e lo pubblica qui.
