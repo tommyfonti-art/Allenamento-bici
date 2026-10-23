@@ -161,6 +161,17 @@ html,body{overscroll-behavior-y:none;}
 .food-item .fi-name{font-size:13.5px; flex:1; min-width:120px;}
 .food-item .fi-amount{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--muted); white-space:nowrap;}
 
+.pw-it{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0;}
+.pw-it .pw-food{flex:1 1 180px; min-width:0;}
+.pw-gw{white-space:nowrap; font-size:14px;}
+.pw-g{width:78px; padding:8px; font-size:16px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--fg);}
+.pw-u{font-size:12px; color:var(--muted); font-weight:400;}
+.pw-fd{border-top:1px solid var(--border); padding:6px 0;}
+.pw-fd summary{cursor:pointer; font-size:14px;}
+.pw-ed{display:flex; flex-wrap:wrap; gap:8px; padding:8px 0;}
+.pw-ed label{font-size:12px; color:var(--muted); display:flex; flex-direction:column; gap:2px;}
+.pw-ed input{width:84px; padding:6px; font-size:16px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--fg);}
+.btn-ghost{margin-top:10px; padding:10px 14px; border:1px solid var(--border); background:var(--surface-2); color:var(--fg); border-radius:10px; font-size:14px;}
 .supp-table{width:100%; border-collapse:collapse; font-size:13px;}
 .supp-table td{padding:8px 0; border-bottom:1px solid var(--border); vertical-align:top;}
 .supp-table tr:last-child td{border-bottom:none;}
@@ -292,35 +303,40 @@ input,select,textarea{font-size:16px !important;}
   <!-- ALIMENTAZIONE CLAUDE -->
   <section class="panel" id="panel-alimclaude" hidden>
     <div class="card">
-      <div class="eyebrow">Piano mio &middot; cibi normali</div>
-      <h2>Tre schemi, scegli la mattina</h2>
-      <div class="desc">Riposo, palestra o bici: tocca quello di oggi. In ogni pasto scegli una sola opzione e cambia quando vuoi.</div>
-      <div class="pill-row" id="claude-day-picker">
-        <button class="pill" data-claude="riposo" aria-pressed="true">Riposo</button>
-        <button class="pill" data-claude="palestra" aria-pressed="false">Palestra</button>
-        <button class="pill" data-claude="bici" aria-pressed="false">Bici</button>
-      </div>
-      <div class="note" id="claude-intro"></div>
+      <div class="eyebrow">Piano della settimana</div>
+      <h2>Cosa mangi ogni giorno</h2>
+      <div class="desc">Costruito sui tuoi turni e sui tuoi allenamenti. Per ogni cibo puoi sceglierne un altro della stessa categoria: i grammi si ricalcolano da soli. Puoi anche cambiare i grammi a mano.</div>
+      <div class="pill-row" id="pw-day-picker"></div>
+      <div class="note" id="pw-intro"></div>
     </div>
 
     <div class="card">
-      <div class="eyebrow">Pranzo e cena a casa</div>
-      <h2>Componi il pranzo</h2>
-      <div class="desc">Scegli la proteina e il carboidrato di oggi: ti dico i grammi per lo schema selezionato qui sopra.</div>
+      <div id="pw-meals"></div>
+      <button class="btn-ghost" id="pw-reset" type="button">Ripristina il piano originale di questo giorno</button>
+    </div>
+
+    <div class="card">
+      <h2>Totali del giorno</h2>
+      <div class="desc" id="pw-target"></div>
+      <table class="supp-table" id="pw-totals"></table>
+      <div class="note">I riferimenti sono quelli della scheda Parametri. I valori dei cibi sono medi per cento grammi: servono come guida, non come pesata esatta.</div>
+    </div>
+
+    <div class="card">
+      <h2>I tuoi cibi</h2>
+      <div class="desc">Scrivi un cibo e premi Invio: lo metto nella categoria giusta (proteine, carboidrati, verdura, frutta, grassi) e poi lo trovi nei menu a tendina del piano. Se non lo riconosco, ti chiedo io la categoria.</div>
       <div class="input-row">
-        <select class="sel" id="claude-prot" aria-label="Proteina"></select>
-        <select class="sel" id="claude-carb" aria-label="Carboidrato"></select>
+        <input type="text" id="pw-new" class="sel" placeholder="Per esempio: tacchino" autocomplete="off" aria-label="Nuovo cibo">
+        <button class="btn small" id="pw-add" type="button">Aggiungi</button>
       </div>
-      <div id="claude-pasto"></div>
-    </div>
-
-    <div class="card">
-      <div id="claude-meals"></div>
+      <div id="pw-ask" class="note" hidden></div>
+      <div id="pw-msg" class="desc"></div>
+      <div id="pw-foods"></div>
     </div>
 
     <div class="card">
       <h2>Regole semplici</h2>
-      <div class="desc" id="claude-rules"></div>
+      <div class="desc" id="pw-rules"></div>
     </div>
   </section>
 
@@ -903,6 +919,7 @@ input,select,textarea{font-size:16px !important;}
 
   // ---------- parametri nutrizionali ----------
   var loadParametriFromDb = function(){};
+  var loadPianoFromDb = function(){};
   (function(){
     var pesoEl = document.getElementById('par-peso'), kcalEl = document.getElementById('par-kcal');
     var tab = document.getElementById('par-table'), st = document.getElementById('par-status');
@@ -965,162 +982,302 @@ input,select,textarea{font-size:16px !important;}
     loadParametriFromDb = function(){ if(db){ db.doc('settings/parametri').get().then(function(d){ if(d.exists) apply(d.data()); }).catch(function(){}); } };
   })();
 
-  // ---------- alimentazione Claude (tre schemi) ----------
-  var PUB_OPT = [
-    "Pane, insalata e uova strapazzate (3 uova)",
-    "Hamburger con pane e insalata (massimo 2 volte a settimana, è la tua carne rossa)",
-    "Panino con la cotoletta di pollo (1 volta a settimana, vale come pollo della settimana)",
-    "Pasta o riso con mozzarella, se te li preparano"
+  // ---------- piano della settimana ----------
+  var PW_FOODS = {"yogurt_magro":{"n":"Yogurt magro","c":"proteine","k":36,"p":3.9,"h":4.7,"f":0.2,"s":0.1,"z":4.7,"b":0},"yogurt_intero":{"n":"Yogurt intero","c":"proteine","k":70,"p":4.0,"h":5.0,"f":3.5,"s":2.3,"z":5.0,"b":0},"pollo":{"n":"Petto di pollo (crudo)","c":"proteine","k":110,"p":23,"h":0,"f":1.8,"s":0.5,"z":0,"b":0},"fagioli":{"n":"Fagioli già cotti","c":"proteine","k":80,"p":6.5,"h":11.5,"f":0.5,"s":0.1,"z":0.5,"b":6},"mozzarella":{"n":"Mozzarella","c":"proteine","k":250,"p":18,"h":1,"f":19.5,"s":12.5,"z":1,"b":0},"feta":{"n":"Feta","c":"proteine","k":264,"p":14,"h":4,"f":21,"s":14.5,"z":4,"b":0},"tonno":{"n":"Tonno al naturale (sgocciolato)","c":"proteine","k":105,"p":24,"h":0,"f":1,"s":0.3,"z":0,"b":0},"speck":{"n":"Speck","c":"proteine","k":303,"p":27,"h":0.5,"f":21,"s":8,"z":0.5,"b":0},"hamburger":{"n":"Hamburger di manzo e maiale (crudo)","c":"proteine","k":250,"p":17,"h":0,"f":20,"s":8,"z":0,"b":0},"bacon":{"n":"Bacon","c":"proteine","k":340,"p":15,"h":0.5,"f":30,"s":11,"z":0.5,"b":0},"uova":{"n":"Uova","c":"proteine","k":128,"p":12.4,"h":0.7,"f":8.7,"s":2.6,"z":0.7,"b":0},"proteine_polvere":{"n":"Proteine in polvere","c":"proteine","k":380,"p":80,"h":6,"f":5,"s":2,"z":3,"b":0},"cotoletta":{"n":"Cotoletta di pollo impanata","c":"proteine","k":230,"p":17,"h":14,"f":12,"s":2,"z":0.5,"b":0.8},"corn_flakes":{"n":"Corn flakes","c":"carboidrati","k":378,"p":7,"h":84,"f":0.9,"s":0.2,"z":8,"b":3},"farro_soffiato":{"n":"Farro soffiato","c":"carboidrati","k":370,"p":10,"h":77,"f":2,"s":0.3,"z":1.5,"b":8},"riso":{"n":"Riso (crudo)","c":"carboidrati","k":335,"p":6.7,"h":79,"f":0.5,"s":0.1,"z":0.1,"b":1},"pasta":{"n":"Pasta (cruda)","c":"carboidrati","k":350,"p":11,"h":72,"f":1.5,"s":0.3,"z":2.5,"b":3},"pane":{"n":"Pane","c":"carboidrati","k":254,"p":8,"h":52,"f":1,"s":0.2,"z":3,"b":3},"patatine":{"n":"Patatine fritte","c":"carboidrati","k":300,"p":3.5,"h":40,"f":15,"s":2,"z":0.5,"b":3.5},"patate":{"n":"Patate lesse","c":"carboidrati","k":80,"p":2,"h":17,"f":0.1,"s":0,"z":1,"b":1.5},"verdura_mista":{"n":"Verdura mista (carote, peperoni, zucchine, cetrioli)","c":"verdura","k":25,"p":1,"h":4.5,"f":0.2,"s":0,"z":3,"b":2},"carote":{"n":"Carote","c":"verdura","k":35,"p":1,"h":7.6,"f":0.2,"s":0,"z":4.8,"b":3},"cipolla":{"n":"Cipolla","c":"verdura","k":26,"p":1,"h":5.7,"f":0.1,"s":0,"z":4.2,"b":1.5},"sedano":{"n":"Sedano","c":"verdura","k":15,"p":1,"h":2.4,"f":0.2,"s":0,"z":1.6,"b":1.6},"peperoni":{"n":"Peperoni","c":"verdura","k":26,"p":1,"h":5,"f":0.3,"s":0,"z":4.5,"b":1.9},"cetrioli":{"n":"Cetrioli","c":"verdura","k":12,"p":0.6,"h":2,"f":0.1,"s":0,"z":1.4,"b":0.7},"zucchine":{"n":"Zucchine","c":"verdura","k":14,"p":1.3,"h":2,"f":0.1,"s":0,"z":1.5,"b":1.2},"melanzane":{"n":"Melanzane","c":"verdura","k":18,"p":1.1,"h":2.6,"f":0.4,"s":0.1,"z":2.5,"b":2.5},"pesche":{"n":"Pesche","c":"frutta","k":27,"p":0.8,"h":6,"f":0.1,"s":0,"z":6,"b":1.6},"albicocche":{"n":"Albicocche","c":"frutta","k":28,"p":0.4,"h":6.8,"f":0.1,"s":0,"z":6.8,"b":1.5},"pere":{"n":"Pere","c":"frutta","k":38,"p":0.3,"h":9.2,"f":0.1,"s":0,"z":9.2,"b":3},"ciliegie":{"n":"Ciliegie","c":"frutta","k":38,"p":1,"h":9,"f":0.2,"s":0,"z":9,"b":1.3},"uva":{"n":"Uva","c":"frutta","k":65,"p":0.6,"h":16,"f":0.2,"s":0,"z":16,"b":1.5},"fragole":{"n":"Fragole","c":"frutta","k":27,"p":0.9,"h":5.3,"f":0.4,"s":0,"z":5.3,"b":1.6},"mele":{"n":"Mele","c":"frutta","k":45,"p":0.2,"h":11.5,"f":0.2,"s":0,"z":10.5,"b":2},"kiwi":{"n":"Kiwi","c":"frutta","k":44,"p":1.2,"h":9,"f":0.6,"s":0,"z":9,"b":2.2},"banane":{"n":"Banane","c":"frutta","k":90,"p":1.1,"h":20,"f":0.3,"s":0.1,"z":15.6,"b":2.6},"frutta_mista":{"n":"Frutta di stagione","c":"frutta","k":45,"p":0.6,"h":10.5,"f":0.2,"s":0,"z":10,"b":2},"olio":{"n":"Olio d'oliva","c":"grassi","k":900,"p":0,"h":0,"f":100,"s":14,"z":0,"b":0},"avocado":{"n":"Avocado","c":"grassi","k":160,"p":2,"h":1.8,"f":15,"s":2.2,"z":0.7,"b":6.7}};
+  var PW_PLAN = {"lun":{"nome":"Lunedì","desc":"Giorno libero. Allenamento: mobilità gambe, gambe giorno 1 e riabilitazione spalla.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",250],["corn_flakes",55],["mele",150],["pane",40]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",120],["pollo",160],["verdura_mista",200],["olio",15]]},{"n":"Prima dell'allenamento","ora":"14:30","it":[["banane",130],["farro_soffiato",30]]},{"n":"Dopo l'allenamento","ora":"17:30","it":[["proteine_polvere",30],["frutta_mista",200],["pane",30]]},{"n":"Cena","ora":"20:00","it":[["riso",100],["fagioli",200],["mozzarella",80],["verdura_mista",200],["avocado",50],["olio",15]]}]},"mar":{"nome":"Martedì","desc":"Lavoro dalle 18 a mezzanotte. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",250],["corn_flakes",55],["kiwi",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["riso",110],["feta",60],["uova",100],["fagioli",150],["verdura_mista",200],["olio",10]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",250],["farro_soffiato",35],["pesche",200]]},{"n":"Pasto al pub","ora":"20:00","it":[["pane",130],["uova",150],["verdura_mista",150],["avocado",50],["olio",10]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"mer":{"nome":"Mercoledì","desc":"Lavoro dalle 8:30 alle 16. Allenamento: mobilità gambe e riabilitazione spalla.","meals":[{"n":"Colazione","ora":"7:45","it":[["yogurt_magro",250],["corn_flakes",55],["banane",130],["pane",40]]},{"n":"Pranzo al lavoro","ora":"12:30","it":[["pasta",130],["pollo",150],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",250],["farro_soffiato",35],["pere",200]]},{"n":"Cena","ora":"20:00","it":[["pane",130],["tonno",120],["fagioli",150],["verdura_mista",200],["avocado",60],["olio",15]]}]},"gio":{"nome":"Giovedì","desc":"Lavoro la sera. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",250],["corn_flakes",55],["albicocche",200],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",130],["mozzarella",80],["fagioli",100],["verdura_mista",200],["olio",10]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",250],["farro_soffiato",35],["ciliegie",150]]},{"n":"Pasto al pub","ora":"20:00","it":[["hamburger",170],["pane",100],["verdura_mista",100],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"ven":{"nome":"Venerdì","desc":"Lavoro la sera. Allenamento: mobilità gambe e gambe giorno 2.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",250],["corn_flakes",55],["mele",150],["pane",40]]},{"n":"Pranzo","ora":"13:00","it":[["riso",110],["fagioli",150],["uova",100],["verdura_mista",200],["olio",15]]},{"n":"Prima dell'allenamento","ora":"14:30","it":[["banane",130],["farro_soffiato",30]]},{"n":"Dopo l'allenamento","ora":"17:30","it":[["proteine_polvere",30],["frutta_mista",200],["pane",50]]},{"n":"Pasto al pub","ora":"20:00","it":[["cotoletta",150],["patatine",70],["pane",70],["verdura_mista",100]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"sab":{"nome":"Sabato","desc":"Lavoro la sera. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",250],["corn_flakes",55],["uva",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",130],["feta",40],["uova",130],["verdura_mista",200],["olio",10]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",250],["farro_soffiato",35],["fragole",200]]},{"n":"Pasto al pub","ora":"20:00","it":[["hamburger",170],["pane",100],["verdura_mista",100],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"dom":{"nome":"Domenica","desc":"Una domenica lavori la sera, l'altra no. Se non lavori, la cena a casa prende il posto del pasto al pub.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",250],["corn_flakes",55],["kiwi",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["patate",250],["uova",150],["speck",30],["fagioli",100],["verdura_mista",200],["olio",15]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",250],["farro_soffiato",40],["pesche",200]]},{"n":"Pasto al pub","ora":"20:00","it":[["pasta",100],["mozzarella",100],["pane",60],["verdura_mista",150],["olio",10]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]}};
+  var PW_CATS = [['proteine','Proteine'],['carboidrati','Carboidrati'],['verdura','Verdura'],['frutta','Frutta'],['grassi','Grassi']];
+  var PW_EXTRA = [
+    {k:['tacchino'], n:'Tacchino (petto, crudo)', c:'proteine', v:[107,23.8,0,1,0.3,0,0]},
+    {k:['prosciutto cotto'], n:'Prosciutto cotto', c:'proteine', v:[215,19,1,15,5,0.5,0]},
+    {k:['prosciutto crudo','prosciutto'], n:'Prosciutto crudo', c:'proteine', v:[268,26,0,18,6,0,0]},
+    {k:['bresaola'], n:'Bresaola', c:'proteine', v:[150,32,0,2,1,0,0]},
+    {k:['ricotta'], n:'Ricotta', c:'proteine', v:[146,8.8,3.5,10.9,7,3.5,0]},
+    {k:['parmigiano','grana'], n:'Parmigiano', c:'proteine', v:[392,33,0,28,18,0,0]},
+    {k:['salmone'], n:'Salmone', c:'proteine', v:[185,20,0,12,2.5,0,0]},
+    {k:['merluzzo','nasello'], n:'Merluzzo', c:'proteine', v:[71,17,0,0.3,0.1,0,0]},
+    {k:['gamber'], n:'Gamberi', c:'proteine', v:[71,14,2,1,0.2,0,0]},
+    {k:['ceci'], n:'Ceci già cotti', c:'proteine', v:[120,7,16,2.5,0.3,1,5]},
+    {k:['lenticchie'], n:'Lenticchie già cotte', c:'proteine', v:[100,7.5,15,0.5,0.1,1,5]},
+    {k:['tofu'], n:'Tofu', c:'proteine', v:[120,12,2,7,1,0,0.5]},
+    {k:['salsiccia'], n:'Salsiccia', c:'proteine', v:[330,15,0.5,30,11,0,0]},
+    {k:['latte parzialmente','latte parziale'], n:'Latte parzialmente scremato', c:'proteine', v:[46,3.4,5,1.5,1,5,0]},
+    {k:['latte'], n:'Latte intero', c:'proteine', v:[64,3.3,4.9,3.6,2.3,4.9,0]},
+    {k:['fiocchi di latte','cottage'], n:'Fiocchi di latte', c:'proteine', v:[98,11,3.4,4.3,2.7,3.4,0]},
+    {k:['avena'], n:'Fiocchi di avena', c:'carboidrati', v:[372,13,60,7,1.3,1,10]},
+    {k:['biscott'], n:'Biscotti secchi', c:'carboidrati', v:[430,7,75,11,3,20,2]},
+    {k:['fette biscottate'], n:'Fette biscottate', c:'carboidrati', v:[400,11,76,5,1,5,4]},
+    {k:['gnocchi'], n:'Gnocchi di patate', c:'carboidrati', v:[150,3.5,32,0.5,0.1,1,1.5]},
+    {k:['piadina'], n:'Piadina', c:'carboidrati', v:[300,8,50,8,3,2,2.5]},
+    {k:['cous','couscous'], n:'Cous cous (crudo)', c:'carboidrati', v:[360,12,73,1.5,0.3,2,3]},
+    {k:['quinoa'], n:'Quinoa (cruda)', c:'carboidrati', v:[370,14,64,6,0.7,1,7]},
+    {k:['patata dolce','patate dolci'], n:'Patata dolce', c:'carboidrati', v:[86,1.6,20,0.1,0,4,3]},
+    {k:['pomodor'], n:'Pomodori', c:'verdura', v:[18,1,2.8,0.2,0,2.8,1.2]},
+    {k:['insalata','lattuga','rucola'], n:'Insalata', c:'verdura', v:[15,1.5,2,0.2,0,1,1.5]},
+    {k:['spinaci'], n:'Spinaci', c:'verdura', v:[31,3,1.5,0.7,0.1,0.5,2]},
+    {k:['finocch'], n:'Finocchi', c:'verdura', v:[9,1.2,1,0.2,0,1,2.2]},
+    {k:['funghi'], n:'Funghi', c:'verdura', v:[22,3,0.5,0.3,0,0.5,2]},
+    {k:['fagiolini'], n:'Fagiolini', c:'verdura', v:[28,2,4,0.2,0,2,3]},
+    {k:['arance','arancia'], n:'Arance', c:'frutta', v:[34,0.7,7.8,0.2,0,7.8,1.6]},
+    {k:['mandarini','mandarino','clementine'], n:'Mandarini', c:'frutta', v:[40,0.8,9,0.2,0,9,1.7]},
+    {k:['ananas'], n:'Ananas', c:'frutta', v:[40,0.5,10,0.1,0,10,1.4]},
+    {k:['melone'], n:'Melone', c:'frutta', v:[33,0.8,7.4,0.2,0,7.4,1]},
+    {k:['anguria','cocomero'], n:'Anguria', c:'frutta', v:[16,0.5,3.7,0.2,0,3.7,0.3]},
+    {k:['prugne','susine'], n:'Prugne', c:'frutta', v:[35,0.6,8,0.1,0,8,1.5]},
+    {k:['fichi'], n:'Fichi', c:'frutta', v:[47,0.9,11,0.2,0,11,2]},
+    {k:['lamponi','mirtilli','more'], n:'Frutti di bosco', c:'frutta', v:[35,1,6,0.5,0,5,4]},
+    {k:['noci'], n:'Noci', c:'grassi', v:[660,14,3,66,6,2,6]},
+    {k:['mandorle'], n:'Mandorle', c:'grassi', v:[580,21,5,52,4,4,12]},
+    {k:['nocciole'], n:'Nocciole', c:'grassi', v:[650,14,6,63,4.5,4,10]},
+    {k:['frutta secca'], n:'Frutta secca mista', c:'grassi', v:[620,17,5,57,5,3,8]},
+    {k:['burro di arachidi'], n:'Burro di arachidi', c:'grassi', v:[590,25,12,50,10,6,6]},
+    {k:['burro'], n:'Burro', c:'grassi', v:[750,0.7,0.7,83,52,0.7,0]}
   ];
-  var FINE_TURNO = "Un frutto, se c'è. Se vai a letto senza mangiare, va bene così.";
-  var MERENDA_OPT = [
-    "Yogurt intero con frutta e cereali o fiocchi di mais",
-    "Pane e marmellata e un frutto",
-    "Un frutto con una manciata di frutta secca (noci o mandorle)"
-  ];
+  var PW_CATWORDS = {
+    proteine:['carne','manzo','maiale','vitello','agnello','pesce','uov','formaggio','yogurt','mozzarella','feta','fagioli','piselli','seitan','pollo','wurstel','salame','mortadella','proteine','tonno'],
+    carboidrati:['pasta','riso','pane','cereali','farro','orzo','mais','polenta','pizza','patat','crackers','grissini','muesli','fiocchi','spaghetti','penne','biscott'],
+    verdura:['verdur','zucchin','carot','cipoll','sedano','peperon','cetriol','melanzan','radicchio','bietol','porri','asparagi'],
+    frutta:['frutta','pesch','albicocch','per','ciliegi','uva','fragol','mel','kiwi','banan','limon'],
+    grassi:['olio','avocado','semi','maionese']
+  };
+  var PW_AVG = {proteine:[150,15,2,9,3,1,0], carboidrati:[300,8,60,2,0.5,3,3], verdura:[25,1.2,4,0.2,0,2.5,2], frutta:[45,0.6,10,0.2,0,9,2], grassi:[600,5,5,55,10,2,3]};
+  var PW_DAYORDER = ['lun','mar','mer','gio','ven','sab','dom'];
+  var PW_SHORT = {lun:'Lun',mar:'Mar',mer:'Mer',gio:'Gio',ven:'Ven',sab:'Sab',dom:'Dom'};
+  var PW_EXTRAKCAL = {lun:250,mer:70,ven:210};
+  var PW_RULES = "Pollo al massimo tre volte a settimana, la cotoletta del pub compresa. Tonno una volta a settimana. Speck poco, una volta a settimana. Carne rossa solo l'hamburger del pub, due volte a settimana. Bacon ogni tanto: meglio una sola fetta, perché ha molti grassi saturi. Niente cavoli e broccoli. Lo yogurt magro tiene bassi i grassi saturi: se non ti piace, scegli l'intero dal menu a tendina e guarda i totali. Domenica: una volta lavori la sera e una no; se non lavori, mangia a casa quello che nel piano è il pasto al pub. I giorni di bici aggiungi circa 400 calorie per ogni ora: pane, banane e il frullato di proteine dopo. I grammi sono un riferimento: a occhio va bene.";
 
-  var CLAUDE_PLAN = {
-    riposo: {
-      intro: "Giorno senza allenamento. Circa 2300 calorie, indicative. I pasti forti sono il pranzo e quello al pub.",
-      meals: [
-        {name:"Colazione", ora:"8:00-9:30", opts:[
-          "Yogurt intero 200 g con frutta e 3-4 cucchiai di cereali o fiocchi di mais, più 2 fette di pane e marmellata",
-          "Latte intero 250 ml con 50 g di cereali o riso soffiato, un frutto e 1 fetta di pane e marmellata",
-          "2 fette di pane e marmellata, 1 uovo strapazzato e un frutto"
-        ]},
-        {name:"Pranzo", ora:"13:00", sub:"Scegli tu carboidrato e proteina nel riquadro «Componi il pranzo» in alto.", opts:[
-          "I grammi giusti per lo schema di oggi li trovi nel riquadro «Componi il pranzo»."
-        ]},
-        {name:"Merenda", ora:"16:30", opts: MERENDA_OPT},
-        {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
-        {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
-        {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
-          "Come a pranzo: scegli proteina e carboidrato nel riquadro «Componi il pranzo»"
-        ]}
-      ]
-    },
-    palestra: {
-      intro: "Giorno di palestra. Circa 2600 calorie, indicative. Rispetto al riposo: porzioni un po' più grandi, più il frullato di proteine e qualcosa prima e dopo l'allenamento.",
-      meals: [
-        {name:"Colazione", ora:"8:00-9:30", opts:[
-          "Yogurt intero 250 g, frutta, 60 g di cereali o fiocchi di mais e 2 fette di pane e marmellata",
-          "Latte intero 300 ml con 70 g di cereali, una banana e 2 fette di pane e marmellata",
-          "3 fette di pane e marmellata, 2 uova strapazzate, un frutto e un bicchiere di latte"
-        ]},
-        {name:"Prima dell'allenamento", ora:"se ti alleni nel pomeriggio, verso le 14:30", opts:[
-          "Un frutto con 40 g di riso soffiato o fiocchi di mais",
-          "2 fette di pane e marmellata"
-        ]},
-        {name:"Dopo l'allenamento del pomeriggio", ora:"verso le 17:30", opts:[
-          "Frullato di proteine (30 g di polvere con acqua o latte) e una banana",
-          "Frullato di proteine e 30 g di riso soffiato o 2 fette di pane e marmellata"
-        ]},
-        {name:"Dopo l'allenamento della mattina", ora:"se ti alleni verso le 10, al ritorno verso le 12", opts:[
-          "Frullato di proteine (30 g di polvere con acqua o latte) e un frutto",
-          "Yogurt intero 250 g con cereali e frutta"
-        ]},
-        {name:"Pranzo", ora:"13:00", sub:"Scegli tu carboidrato e proteina nel riquadro «Componi il pranzo» in alto.", opts:[
-          "I grammi giusti per lo schema di oggi li trovi nel riquadro «Componi il pranzo»."
-        ]},
-        {name:"Merenda", ora:"16:30, se ti sei allenato la mattina", opts: MERENDA_OPT},
-        {name:"Pasto al pub", ora:"19:00", opts: PUB_OPT},
-        {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
-        {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
-          "Come a pranzo: scegli proteina e carboidrato nel riquadro «Componi il pranzo»"
-        ]}
-      ]
-    },
-    bici: {
-      intro: "Giorno di uscita lunga (oltre un'ora e mezza). Circa 2900 calorie, indicative. Con un'uscita più corta usa lo schema della palestra.",
-      meals: [
-        {name:"Colazione", ora:"2-3 ore prima di partire", opts:[
-          "Latte intero 300 ml con 80 g di cereali o fiocchi di mais, 3 fette di pane e marmellata e una banana",
-          "Yogurt intero 250 g con 70 g di cereali, frutta e 2 fette di pane e marmellata"
-        ]},
-        {name:"Durante l'uscita", ora:"ogni 30-40 minuti", sub:"Circa 40-60 g di carboidrati all'ora. Acqua con un pizzico di sale, circa mezzo litro all'ora.", opts:[
-          "Pane e marmellata a pezzetti, banane, barrette di cereali (una banana o una fetta di pane e marmellata valgono circa 25 g di carboidrati)",
-          "Oppure le ciclodestrine che trovi nella scheda Integratori"
-        ]},
-        {name:"Appena finito", ora:"entro un'ora", opts:[
-          "Frullato di proteine (30 g di polvere) con una banana e un po' di latte",
-          "Yogurt intero 250 g con cereali e frutta"
-        ]},
-        {name:"Pranzo", ora:"13:00", sub:"Scegli tu carboidrato e proteina nel riquadro «Componi il pranzo» in alto.", opts:[
-          "I grammi giusti per lo schema di oggi li trovi nel riquadro «Componi il pranzo»."
-        ]},
-        {name:"Merenda", ora:"16:30", opts: MERENDA_OPT},
-        {name:"Pasto al pub", ora:"19:00", sub:"Aggiungi pane a piacere: il giorno della bici lo puoi mangiare in più.", opts: PUB_OPT},
-        {name:"Fine turno", ora:"dopo mezzanotte", opts:[FINE_TURNO]},
-        {name:"Cena a casa", ora:"nei giorni senza turno serale", opts:[
-          "Come a pranzo: scegli proteina e carboidrato nel riquadro «Componi il pranzo»"
-        ]}
-      ]
+  var pwFoods = JSON.parse(JSON.stringify(PW_FOODS));   // cibi di base + modifiche e cibi aggiunti
+  var pwCustom = {};                                      // id -> true per i cibi aggiunti da te
+  var pwPlan = {};                                        // modifiche al piano, per giorno
+  var pwDay = 'lun';
+
+  function pwNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+  function pwEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function pwR(x){ return Math.round(x); }
+  function pwDayKey(){ var d = new Date().getDay(); return ['dom','lun','mar','mer','gio','ven','sab'][d]; }
+  function pwGetDay(k){ return pwPlan[k] || PW_PLAN[k]; }
+  function pwSave(){
+    try{ localStorage.setItem('piano-sett', JSON.stringify(pwPlan)); localStorage.setItem('cibi-sett', JSON.stringify({foods:pwFoods, custom:pwCustom})); }catch(e){}
+    if(db){
+      db.doc('settings/pianoSett').set({ plan: JSON.stringify(pwPlan), updated: Date.now() }).catch(function(){});
+      db.doc('settings/cibi').set({ data: JSON.stringify({foods:pwFoods, custom:pwCustom}), updated: Date.now() }).catch(function(){});
     }
-  };
-
-  var PASTO = {
-    prot: {
-      pollo:      {label:"Petto di pollo", g:{riposo:150, palestra:180, bici:200}, unit:"g", nota:"Pollo al massimo 3 volte a settimana."},
-      mozzarella: {label:"Mozzarella", g:{riposo:125, palestra:150, bici:175}, unit:"g", nota:"Va bene quella normale."},
-      uova:       {label:"Uova", g:{riposo:2, palestra:3, bici:3}, unit:"uova", nota:""},
-      tonno:      {label:"Tonno (sgocciolato)", g:{riposo:100, palestra:120, bici:140}, unit:"g", nota:"Tonno una volta a settimana."},
-      legumi:     {label:"Legumi già cotti (ceci, lenticchie, fagioli)", g:{riposo:150, palestra:200, bici:200}, unit:"g", fattore:0.9, nota:"I legumi hanno già carboidrati, quindi la pasta o il riso sono un po' meno."}
-    },
-    carb: {
-      pasta: {label:"Pasta (cruda)", g:{riposo:120, palestra:150, bici:180}},
-      riso:  {label:"Riso (crudo)", g:{riposo:120, palestra:150, bici:180}},
-      pane:  {label:"Pane", g:{riposo:130, palestra:160, bici:200}}
-    },
-    olio: {riposo:"1 cucchiaio", palestra:"1 cucchiaio", bici:"1 cucchiaio e mezzo"}
-  };
-  var claudeKey = 'riposo';
-  var selProt = document.getElementById('claude-prot');
-  var selCarb = document.getElementById('claude-carb');
-  Object.keys(PASTO.prot).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=PASTO.prot[k].label; selProt.appendChild(o); });
-  Object.keys(PASTO.carb).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=PASTO.carb[k].label; selCarb.appendChild(o); });
-  function renderPasto(){
-    var p = PASTO.prot[selProt.value], c = PASTO.carb[selCarb.value];
-    var gc = c.g[claudeKey];
-    if(p.fattore && selCarb.value!=='pane'){ gc = Math.round(gc*p.fattore/5)*5; }
-    var h = '<div class="pasto-res">';
-    h += '<div class="riga"><b>'+c.label+':</b> '+gc+' g</div>';
-    h += '<div class="riga"><b>'+p.label+':</b> '+p.g[claudeKey]+(p.unit==='g'?' g':' '+p.unit)+'</div>';
-    h += '<div class="riga"><b>Verdura:</b> a piacere (tutte vanno bene, tranne cavoli e broccoli)</div>';
-    h += '<div class="riga"><b>Olio:</b> '+PASTO.olio[claudeKey]+'</div>';
-    if(p.nota){ h += '<div class="nota">'+p.nota+'</div>'; }
-    h += '</div>';
-    document.getElementById('claude-pasto').innerHTML = h;
   }
-  selProt.addEventListener('change', renderPasto);
-  selCarb.addEventListener('change', renderPasto);
+  function pwLoadLocal(){
+    try{ var p = JSON.parse(localStorage.getItem('piano-sett')||'null'); if(p) pwPlan = p; }catch(e){}
+    try{ var c = JSON.parse(localStorage.getItem('cibi-sett')||'null'); if(c && c.foods){ pwMerge(c); } }catch(e){}
+  }
+  function pwMerge(c){
+    Object.keys(c.foods).forEach(function(id){ pwFoods[id] = c.foods[id]; });
+    pwCustom = c.custom || {};
+  }
+  loadPianoFromDb = function(){
+    if(!db) return;
+    db.doc('settings/pianoSett').get().then(function(d){ if(d.exists){ try{ pwPlan = JSON.parse(d.data().plan)||{}; localStorage.setItem('piano-sett', JSON.stringify(pwPlan)); }catch(e){} pwRender(); } }).catch(function(){});
+    db.doc('settings/cibi').get().then(function(d){ if(d.exists){ try{ pwMerge(JSON.parse(d.data().data)); localStorage.setItem('cibi-sett', d.data().data); }catch(e){} pwRender(); } }).catch(function(){});
+  };
 
-  var CLAUDE_RULES = "Pollo al massimo 3 volte a settimana (la cotoletta del pub conta). Tonno una volta a settimana. Carne rossa solo l'hamburger del pub, massimo 2 volte a settimana. Niente cavoli e broccoli. Latticini interi e cibi normali. I grammi sono solo un riferimento: a occhio va bene, niente pesate maniacali. Acqua a sete, di più nei giorni di bici. Creatina e proteine in polvere come già fai. Il peso lo guardi ogni tanto nella scheda Progressi: se in tre settimane non si muove e vuoi salire, aggiungi pane o pasta ai pasti principali.";
+  function pwPeso(){
+    try{ var o = JSON.parse(localStorage.getItem('par-settings')||'null'); var v = parseFloat(String(o && o.peso).replace(',','.')); if(v>0) return v; }catch(e){}
+    return 75;
+  }
+  function pwEta(){
+    var n = new Date(), a = n.getFullYear()-1992;
+    if(n.getMonth()<0 || (n.getMonth()===0 && n.getDate()<2)) a--;
+    return a;
+  }
+  function pwTargetKcal(k){
+    var kg = pwPeso(), bmr = 10*kg + 6.25*187 - 5*pwEta() + 5;
+    return pwR((bmr*1.4 + (PW_EXTRAKCAL[k]||0))/5)*5;
+  }
+  function pwItemTot(id, g){
+    var f = pwFoods[id]; if(!f) return {k:0,p:0,h:0,f:0,s:0,z:0,b:0};
+    var m = g/100;
+    return {k:f.k*m, p:f.p*m, h:f.h*m, f:f.f*m, s:f.s*m, z:f.z*m, b:f.b*m};
+  }
+  function pwSum(list){
+    var t = {k:0,p:0,h:0,f:0,s:0,z:0,b:0};
+    list.forEach(function(it){ var x = pwItemTot(it[0], it[1]); Object.keys(t).forEach(function(q){ t[q] += x[q]; }); });
+    return t;
+  }
+  function pwDayItems(k){ var out = []; pwGetDay(k).meals.forEach(function(m){ m.it.forEach(function(i){ out.push(i); }); }); return out; }
 
-  function renderClaude(key){
-    claudeKey = key;
-    renderPasto();
-    var plan = CLAUDE_PLAN[key];
-    document.getElementById('claude-intro').textContent = plan.intro;
+  function pwEditable(k){
+    if(!pwPlan[k]) pwPlan[k] = JSON.parse(JSON.stringify(PW_PLAN[k]));
+    return pwPlan[k];
+  }
+  function pwFoodsOf(cat, withValues){
+    return Object.keys(pwFoods).filter(function(id){ return pwFoods[id].c===cat && (!withValues || pwFoods[id].k>0); })
+      .sort(function(a,b){ return pwFoods[a].n.localeCompare(pwFoods[b].n, 'it'); });
+  }
+
+  function pwRenderPicker(){
+    document.getElementById('pw-day-picker').innerHTML = PW_DAYORDER.map(function(k){
+      return '<button class="pill" data-day="'+k+'" aria-pressed="'+(k===pwDay)+'">'+PW_SHORT[k]+'</button>';
+    }).join('');
+  }
+  function pwRenderMeals(){
+    var d = pwGetDay(pwDay);
+    document.getElementById('pw-intro').textContent = d.nome+'. '+d.desc;
     var html = '';
-    plan.meals.forEach(function(m){
-      html += '<div class="meal-block"><div class="meal-name">'+m.name+'<span class="meal-ora">'+m.ora+'</span></div>';
-      if(m.sub){ html += '<div class="meal-sub">'+m.sub+'</div>'; }
-      m.opts.forEach(function(o, i){
-        html += '<div class="opt">'+(m.opts.length>1?'<span class="opt-t">Opzione '+(i+1)+'</span>':'')+o+'</div>';
+    d.meals.forEach(function(m, mi){
+      var t = pwSum(m.it);
+      html += '<div class="meal-block"><div class="meal-name">'+pwEsc(m.n)+'<span class="meal-ora">'+pwEsc(m.ora)+'</span></div>';
+      html += '<div class="meal-sub">'+pwR(t.k)+' calorie · '+pwR(t.p)+' g di proteine</div>';
+      m.it.forEach(function(it, ii){
+        var f = pwFoods[it[0]] || {n:it[0], c:'proteine'};
+        var opts = pwFoodsOf(f.c, true).map(function(id){ return '<option value="'+id+'"'+(id===it[0]?' selected':'')+'>'+pwEsc(pwFoods[id].n)+'</option>'; }).join('');
+        var uova = (it[0]==='uova') ? ' <span class="pw-u">circa '+Math.max(1,pwR(it[1]/50))+' uova</span>' : '';
+        html += '<div class="pw-it" data-m="'+mi+'" data-i="'+ii+'">'+
+          '<select class="sel pw-food" aria-label="Cibo">'+opts+'</select>'+
+          '<span class="pw-gw"><input type="number" inputmode="numeric" class="pw-g" value="'+it[1]+'" aria-label="Grammi"> g</span>'+uova+
+          '</div>';
       });
       html += '</div>';
     });
-    document.getElementById('claude-meals').innerHTML = html;
+    document.getElementById('pw-meals').innerHTML = html;
   }
-  document.getElementById('claude-rules').textContent = CLAUDE_RULES;
-  var claudePicker = document.getElementById('claude-day-picker');
-  claudePicker.addEventListener('click', function(e){
-    var btn = e.target.closest('.pill');
-    if(!btn) return;
-    claudePicker.querySelectorAll('.pill').forEach(function(p){ p.setAttribute('aria-pressed', p===btn?'true':'false'); });
-    renderClaude(btn.dataset.claude);
+  function pwStatus(ok){ return ok ? ['dentro','var(--success)'] : ['fuori','var(--danger)']; }
+  function pwRenderTotals(){
+    var kg = pwPeso(), t = pwSum(pwDayItems(pwDay)), k = t.k;
+    var tg = pwTargetKcal(pwDay);
+    document.getElementById('pw-target').textContent = 'Obiettivo di oggi: circa '+tg+' calorie (peso '+kg+' kg). Questo piano: '+pwR(k)+'.';
+    var pp = t.p*4/k*100, hp = t.h*4/k*100, fp = t.f*9/k*100, sp = t.s*9/k*100, zp = t.z*4/k*100;
+    var gkg = t.p/kg;
+    var rows = [
+      ['Calorie', pwR(k)+' (obiettivo '+tg+')', Math.abs(k-tg)<=80 ? 'dentro' : (k<tg?'sotto':'sopra')],
+      ['Proteine', pwR(t.p)+' g, '+(Math.round(gkg*10)/10).toString().replace('.',',')+' g per chilo ('+pwR(pp)+'%)', gkg>=1.4 && gkg<=2.2 ? 'dentro' : (gkg<1.4?'sotto':'sopra')],
+      ['Carboidrati', pwR(t.h)+' g ('+pwR(hp)+'%)', hp>=45 && hp<=65 ? 'dentro' : (hp<45?'sotto':'sopra')],
+      ['Grassi', pwR(t.f)+' g ('+pwR(fp)+'%)', fp>=20 && fp<=35 ? 'dentro' : (fp<20?'sotto':'sopra')],
+      ['Grassi saturi', pwR(t.s)+' g ('+pwR(sp)+'%)', sp<=10.5 ? 'dentro' : 'sopra'],
+      ['Zuccheri totali', pwR(t.z)+' g ('+pwR(zp)+'%)', zp<=15.5 ? 'dentro' : 'sopra'],
+      ['Fibra', pwR(t.b)+' g', t.b>=25 ? 'dentro' : 'sotto']
+    ];
+    var col = {dentro:'var(--success)', sopra:'var(--danger)', sotto:'var(--danger)'};
+    document.getElementById('pw-totals').innerHTML = rows.map(function(r){
+      return '<tr><td class="sname">'+r[0]+'</td><td class="swhat">'+r[1]+'<br><span style="color:'+col[r[2]]+';font-weight:600">'+r[2]+'</span></td></tr>';
+    }).join('');
+  }
+  function pwRenderFoods(){
+    var html = '';
+    PW_CATS.forEach(function(c){
+      var ids = pwFoodsOf(c[0], false);
+      html += '<div class="meal-block"><div class="meal-name">'+c[1]+'</div>';
+      ids.forEach(function(id){
+        var f = pwFoods[id];
+        var stima = f.est ? ' <span class="pw-u">stima di categoria: correggi i valori</span>' : '';
+        html += '<details class="pw-fd" data-id="'+id+'"><summary>'+pwEsc(f.n)+' <span class="pw-u">'+pwR(f.k)+' kcal per 100 g</span>'+stima+'</summary>'+
+          '<div class="pw-ed">'+
+          [['k','Calorie'],['p','Proteine'],['h','Carboidrati'],['f','Grassi'],['s','Grassi saturi'],['z','Zuccheri'],['b','Fibra']].map(function(q){
+            return '<label>'+q[1]+' <input type="number" inputmode="decimal" step="any" data-q="'+q[0]+'" value="'+f[q[0]]+'"></label>';
+          }).join('')+
+          (pwCustom[id] ? '<button class="btn-ghost pw-del" type="button">Togli questo cibo</button>' : '')+
+          '</div></details>';
+      });
+      html += '</div>';
+    });
+    document.getElementById('pw-foods').innerHTML = html;
+  }
+  function pwRender(){
+    pwRenderPicker(); pwRenderMeals(); pwRenderTotals(); pwRenderFoods();
+    document.getElementById('pw-rules').textContent = PW_RULES;
+  }
+
+  function pwReplaceFood(m, i, newId){
+    var d = pwEditable(pwDay), it = d.meals[m].it[i];
+    var oldF = pwFoods[it[0]], newF = pwFoods[newId];
+    var g = it[1];
+    if(oldF && newF){
+      if(oldF.c==='proteine' && oldF.p>0 && newF.p>0){ g = it[1]*oldF.p/newF.p; }
+      else if(newF.k>0){ g = it[1]*oldF.k/newF.k; }
+    }
+    g = Math.max(5, pwR(g/5)*5);
+    it[0] = newId; it[1] = g;
+  }
+  document.getElementById('pw-day-picker').addEventListener('click', function(e){
+    var b = e.target.closest('.pill'); if(!b) return;
+    pwDay = b.dataset.day; pwRender();
   });
-  renderClaude('riposo');
+  document.getElementById('pw-meals').addEventListener('change', function(e){
+    var row = e.target.closest('.pw-it'); if(!row) return;
+    var m = +row.dataset.m, i = +row.dataset.i;
+    if(e.target.classList.contains('pw-food')){ pwReplaceFood(m, i, e.target.value); }
+    else if(e.target.classList.contains('pw-g')){
+      var v = parseFloat(e.target.value); if(!(v>=0)) v = 0;
+      pwEditable(pwDay).meals[m].it[i][1] = v;
+    } else return;
+    pwSave(); pwRenderMeals(); pwRenderTotals();
+  });
+  document.getElementById('pw-reset').addEventListener('click', function(){
+    delete pwPlan[pwDay]; pwSave(); pwRender();
+  });
+  document.getElementById('pw-foods').addEventListener('change', function(e){
+    var det = e.target.closest('.pw-fd'); if(!det || !e.target.dataset.q) return;
+    var id = det.dataset.id, v = parseFloat(String(e.target.value).replace(',','.'));
+    pwFoods[id][e.target.dataset.q] = (v>=0) ? v : 0;
+    delete pwFoods[id].est;
+    pwSave(); pwRenderMeals(); pwRenderTotals();
+    var f = det.querySelector('summary .pw-u'); if(f) f.textContent = pwR(pwFoods[id].k)+' kcal per 100 g';
+  });
+  document.getElementById('pw-foods').addEventListener('click', function(e){
+    var b = e.target.closest('.pw-del'); if(!b) return;
+    var id = b.closest('.pw-fd').dataset.id;
+    var usato = false;
+    PW_DAYORDER.forEach(function(k){ pwGetDay(k).meals.forEach(function(m){ m.it.forEach(function(i){ if(i[0]===id) usato = true; }); }); });
+    if(usato){ document.getElementById('pw-msg').textContent = 'Non lo tolgo: è usato in un giorno del piano. Cambialo prima nel menu a tendina.'; return; }
+    delete pwFoods[id]; delete pwCustom[id]; pwSave(); pwRender();
+  });
+
+  function pwSlug(n){ return 'c_'+pwNorm(n).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+  function pwFind(text){
+    var t = pwNorm(text), hit = null;
+    PW_EXTRA.forEach(function(x){ if(!hit && x.k.some(function(s){ return t.indexOf(s)>=0; })) hit = x; });
+    return hit;
+  }
+  function pwCategory(text){
+    var t = pwNorm(text), cat = null;
+    PW_CATS.forEach(function(c){ if(!cat && PW_CATWORDS[c[0]].some(function(s){ return t.indexOf(s)>=0; })) cat = c[0]; });
+    return cat;
+  }
+  function pwNomeBello(s){ s = s.trim().replace(/\s+/g,' '); return s.charAt(0).toUpperCase()+s.slice(1); }
+  function pwAddFood(text, cat){
+    var msg = document.getElementById('pw-msg');
+    var norm = pwNorm(text); if(!norm) return;
+    var esiste = Object.keys(pwFoods).filter(function(id){ return pwNorm(pwFoods[id].n).indexOf(norm)>=0 || norm.indexOf(pwNorm(pwFoods[id].n))===0 && pwNorm(pwFoods[id].n).length>3; })[0];
+    if(esiste){ msg.textContent = 'C\'è già: '+pwFoods[esiste].n+'.'; return; }
+    var ex = pwFind(text), id, f;
+    if(ex){
+      id = pwSlug(ex.n); if(pwFoods[id]){ msg.textContent = 'C\'è già: '+pwFoods[id].n+'.'; return; }
+      f = {n:ex.n, c:ex.c, k:ex.v[0], p:ex.v[1], h:ex.v[2], f:ex.v[3], s:ex.v[4], z:ex.v[5], b:ex.v[6]};
+    } else {
+      cat = cat || pwCategory(text);
+      if(!cat){ pwAsk(text); return; }
+      var a = PW_AVG[cat]; id = pwSlug(text);
+      f = {n:pwNomeBello(text), c:cat, k:a[0], p:a[1], h:a[2], f:a[3], s:a[4], z:a[5], b:a[6], est:true};
+    }
+    pwFoods[id] = f; pwCustom[id] = true;
+    document.getElementById('pw-ask').hidden = true;
+    var nome = PW_CATS.filter(function(c){ return c[0]===f.c; })[0][1].toLowerCase();
+    msg.textContent = 'Aggiunto «'+f.n+'» tra '+nome+(f.est ? ' (con valori medi della categoria: correggili qui sotto)' : '')+'.';
+    document.getElementById('pw-new').value = '';
+    pwSave(); pwRender();
+  }
+  function pwAsk(text){
+    var box = document.getElementById('pw-ask');
+    box.hidden = false;
+    box.dataset.text = text;
+    box.innerHTML = 'Non so dove metterlo. «'+pwEsc(text)+'» è:<div class="pill-row" style="margin-top:8px">'+
+      PW_CATS.map(function(c){ return '<button class="pill" type="button" data-cat="'+c[0]+'">'+c[1]+'</button>'; }).join('')+'</div>';
+  }
+  document.getElementById('pw-ask').addEventListener('click', function(e){
+    var b = e.target.closest('[data-cat]'); if(!b) return;
+    pwAddFood(this.dataset.text, b.dataset.cat);
+  });
+  document.getElementById('pw-add').addEventListener('click', function(){ pwAddFood(document.getElementById('pw-new').value); });
+  document.getElementById('pw-new').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); pwAddFood(this.value); } });
+
+  pwLoadLocal();
+  pwDay = pwDayKey();
+  pwRender();
 
   // ---------- render diet ----------
 
@@ -2334,6 +2491,7 @@ input,select,textarea{font-size:16px !important;}
     loadDraftFromDb();
     loadMenuFromDb();
     loadParametriFromDb();
+    loadPianoFromDb();
     loadSchedeFromDb();
     loadCardsFromDb();
     pdfList();
