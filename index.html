@@ -384,6 +384,17 @@ input,select,textarea{font-size:16px !important;}
       <div class="desc" id="par-status"></div>
     </div>
     <div class="card">
+      <h2>Quanto consumi</h2>
+      <div class="desc">Nato il 2 gennaio 1992. Consumo a riposo (formula Mifflin-St Jeor) pi&ugrave; la vita di tutti i giorni in piedi al pub, poi si aggiunge l'allenamento del giorno. &Egrave; una stima: lo scarto pu&ograve; essere di qualche centinaio di calorie.</div>
+      <div class="stat-row">
+        <div class="stat"><div class="num" id="par-eta">34</div><div class="lbl">anni</div></div>
+        <div class="stat"><div class="num" id="par-bmr">1750</div><div class="lbl">calorie a riposo totale</div></div>
+        <div class="stat"><div class="num" id="par-base">2450</div><div class="lbl">giorno senza allenamento</div></div>
+      </div>
+      <table class="supp-table" id="par-week"></table>
+      <div class="note" id="par-week-note"></div>
+    </div>
+    <div class="card">
       <h2>Riferimento e il tuo 5 ottobre</h2>
       <table class="supp-table" id="par-table"></table>
       <div class="note">Il tuo 5 ottobre (giorno di riposo) &egrave; una stima: per gli alimenti senza calorie scritte ho usato valori medi. Gli estremi degli intervalli non vanno presi come obiettivo personale: meglio puntare verso il centro.</div>
@@ -896,6 +907,32 @@ input,select,textarea{font-size:16px !important;}
     var pesoEl = document.getElementById('par-peso'), kcalEl = document.getElementById('par-kcal');
     var tab = document.getElementById('par-table'), st = document.getElementById('par-status');
     function r(x){ return Math.round(x); }
+    var NASCITA = new Date(1992,0,2);
+    var SETTIMANA = [
+      ['Luned\u00ec', 'Gambe giorno 1, riscaldamento gambe, riabilitazione spalla', 50+300+60],
+      ['Marted\u00ec', 'riposo', 0],
+      ['Mercoled\u00ec', 'riscaldamento gambe, riabilitazione spalla', 50+60],
+      ['Gioved\u00ec', 'riposo', 0],
+      ['Venerd\u00ec', 'Gambe giorno 2, riscaldamento gambe (spalla a volte: +60)', 50+300],
+      ['Sabato', 'riposo', 0],
+      ['Domenica', 'riposo', 0]
+    ];
+    function eta(){
+      var o = new Date(), a = o.getFullYear() - NASCITA.getFullYear();
+      if(o.getMonth() < NASCITA.getMonth() || (o.getMonth() === NASCITA.getMonth() && o.getDate() < NASCITA.getDate())) a--;
+      return a;
+    }
+    function renderConsumo(kg, k){
+      var bmr = 10*kg + 6.25*187 - 5*eta() + 5, base = bmr*1.4, tot = 0;
+      document.getElementById('par-eta').textContent = eta();
+      document.getElementById('par-bmr').textContent = r(bmr);
+      document.getElementById('par-base').textContent = r(base/10)*10;
+      document.getElementById('par-week').innerHTML = '<tr><th style="text-align:left">Giorno</th><th style="text-align:left">Cosa fai</th><th style="text-align:left">Calorie</th></tr>' +
+        SETTIMANA.map(function(d){ var c = base + d[2]; tot += c;
+          return '<tr><td><b>'+d[0]+'</b></td><td>'+d[1]+'</td><td>circa '+(r(c/10)*10)+'</td></tr>'; }).join('');
+      var media = tot/7;
+      document.getElementById('par-week-note').textContent = 'Media della settimana: circa '+(r(media/10)*10)+' calorie al giorno. Stime usate per l\'allenamento: gambe circa 300, riscaldamento gambe circa 50, riabilitazione spalla circa 60. Ogni ora di bici in pi\u00f9: circa 400. Con '+k+' calorie al giorno, rispetto alla media sei a '+(k-media>=0?'+':'')+r(k-media)+' al giorno.';
+    }
     function render(){
       var kg = parseFloat(String(pesoEl.value).replace(',','.')) || 75;
       var k = parseFloat(kcalEl.value) || 2650;
@@ -908,6 +945,7 @@ input,select,textarea{font-size:16px !important;}
         ['Zuccheri aggiunti (OMS)', 'meno del 10%: sotto '+r(k*.10/4)+' g; meglio sotto il 5%: '+r(k*.05/4)+' g', 'circa 33 g, 5%', 'dentro'],
         ['Fibra', 'almeno 25 g', 'circa 20 g', 'un po\' sotto']
       ];
+      renderConsumo(kg, k);
       var col = {'dentro':'var(--success)','limite basso':'var(--muted)','sopra':'var(--danger)','appena sopra':'var(--danger)',"un po' sotto":'var(--danger)'};
       tab.innerHTML = '<tr><th style="text-align:left">Nutriente</th><th style="text-align:left">Riferimento per te</th><th style="text-align:left">5 ottobre</th></tr>' +
         rows.map(function(x){
