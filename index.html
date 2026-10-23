@@ -371,6 +371,29 @@ input,select,textarea{font-size:16px !important;}
     <div class="note">Omega 3: da olio di alghe (vegano) &mdash; niente olio di pesce.</div>
   </section>
 
+  <!-- PARAMETRI NUTRIZIONALI -->
+  <section class="panel" id="panel-parametri" hidden>
+    <div class="card">
+      <h2>Parametri nutrizionali</h2>
+      <div class="desc">Valori di riferimento della societ&agrave; italiana di nutrizione umana (LARN), dell'OMS e della societ&agrave; internazionale di nutrizione sportiva, calcolati sul tuo peso e sulle tue calorie. Cambia i due numeri e la tabella si aggiorna.</div>
+      <div class="stat-row">
+        <div class="stat"><input type="number" inputmode="decimal" id="par-peso" value="75" style="width:80px;text-align:center" aria-label="Peso in chili"><div class="lbl">peso (kg)</div></div>
+        <div class="stat"><input type="number" inputmode="numeric" id="par-kcal" value="2650" style="width:90px;text-align:center" aria-label="Calorie al giorno"><div class="lbl">calorie al giorno</div></div>
+        <div class="stat"><div class="num">1,87<span style="font-size:12px">m</span></div><div class="lbl">altezza</div></div>
+      </div>
+      <div class="desc" id="par-status"></div>
+    </div>
+    <div class="card">
+      <h2>Riferimento e il tuo 5 ottobre</h2>
+      <table class="supp-table" id="par-table"></table>
+      <div class="note">Il tuo 5 ottobre (giorno di riposo) &egrave; una stima: per gli alimenti senza calorie scritte ho usato valori medi. Gli estremi degli intervalli non vanno presi come obiettivo personale: meglio puntare verso il centro.</div>
+    </div>
+    <div class="card">
+      <h2>Fonti</h2>
+      <div class="desc">LARN (tabelle riassuntive, sinu.it) &middot; OMS, linee guida sugli zuccheri &middot; Posizione della societ&agrave; internazionale di nutrizione sportiva sulle proteine (2017).</div>
+    </div>
+  </section>
+
   <!-- BICI -->
   <section class="panel" id="panel-bici" hidden>
     <div class="card">
@@ -789,12 +812,13 @@ input,select,textarea{font-size:16px !important;}
     fisio:         'Fisio',
     alimclaude:    'Alimentazione Claude',
     diario:        'Diario cibo',
+    parametri:     'Parametri',
     integratori:   'Integratori',
     bici:          'Bici',
     progressi:     'Progressi',
     pdf:           'PDF'
   };
-  var DEFAULT_ORDER = ['allenamento','fisio','alimclaude','diario','integratori','bici','progressi','pdf'];
+  var DEFAULT_ORDER = ['allenamento','fisio','alimclaude','diario','parametri','integratori','bici','progressi','pdf'];
   var menuOrder = DEFAULT_ORDER.slice();
   var currentTab = 'allenamento';
 
@@ -865,6 +889,43 @@ input,select,textarea{font-size:16px !important;}
     }).catch(function(){});
   }
   refreshMenu();
+
+  // ---------- parametri nutrizionali ----------
+  var loadParametriFromDb = function(){};
+  (function(){
+    var pesoEl = document.getElementById('par-peso'), kcalEl = document.getElementById('par-kcal');
+    var tab = document.getElementById('par-table'), st = document.getElementById('par-status');
+    function r(x){ return Math.round(x); }
+    function render(){
+      var kg = parseFloat(String(pesoEl.value).replace(',','.')) || 75;
+      var k = parseFloat(kcalEl.value) || 2650;
+      var rows = [
+        ['Proteine', 'da '+r(0.9*kg)+' g (0,9 per chilo, minimo) a '+r(2*kg)+' g (2 per chilo, per chi si allena); in percentuale 12-20%: '+r(k*.12/4)+'-'+r(k*.20/4)+' g', '108 g, 17%', 'dentro'],
+        ['Carboidrati', '45-60% delle calorie: '+r(k*.45/4)+'-'+r(k*.60/4)+' g (fino al 65% con sforzi intensi)', '290 g, 45%', 'limite basso'],
+        ['Grassi totali', '20-35%: '+r(k*.20/9)+'-'+r(k*.35/9)+' g; meglio sotto il 30%, cio\u00e8 '+r(k*.30/9)+' g', '110 g, 38%', 'sopra'],
+        ['Grassi saturi', 'meno del 10%: sotto '+r(k*.10/9)+' g', 'circa 48 g, 17%', 'sopra'],
+        ['Zuccheri semplici totali', 'meno del 15%: sotto '+r(k*.15/4)+' g (frutta e yogurt compresi)', 'circa 110 g, 16%', 'appena sopra'],
+        ['Zuccheri aggiunti (OMS)', 'meno del 10%: sotto '+r(k*.10/4)+' g; meglio sotto il 5%: '+r(k*.05/4)+' g', 'circa 33 g, 5%', 'dentro'],
+        ['Fibra', 'almeno 25 g', 'circa 20 g', 'un po\' sotto']
+      ];
+      var col = {'dentro':'var(--success)','limite basso':'var(--muted)','sopra':'var(--danger)','appena sopra':'var(--danger)',"un po' sotto":'var(--danger)'};
+      tab.innerHTML = '<tr><th style="text-align:left">Nutriente</th><th style="text-align:left">Riferimento per te</th><th style="text-align:left">5 ottobre</th></tr>' +
+        rows.map(function(x){
+          return '<tr><td><b>'+x[0]+'</b></td><td>'+x[1]+'</td><td>'+x[2]+'<br><span style="color:'+(col[x[3]]||'inherit')+';font-weight:600">'+x[3]+'</span></td></tr>';
+        }).join('');
+    }
+    function save(){
+      var o = { peso: pesoEl.value, kcal: kcalEl.value, updated: Date.now() };
+      try{ localStorage.setItem('par-settings', JSON.stringify(o)); }catch(e){}
+      if(db){ db.doc('settings/parametri').set(o).then(function(){ st.textContent='Salvato.'; }).catch(function(){ st.textContent='Salvato solo su questo dispositivo.'; }); }
+      else { st.textContent='Salvato solo su questo dispositivo.'; }
+    }
+    function apply(o){ if(!o) return; if(o.peso) pesoEl.value = o.peso; if(o.kcal) kcalEl.value = o.kcal; render(); }
+    try{ apply(JSON.parse(localStorage.getItem('par-settings')||'null')); }catch(e){}
+    render();
+    [pesoEl,kcalEl].forEach(function(el){ el.addEventListener('input', function(){ render(); }); el.addEventListener('change', save); });
+    loadParametriFromDb = function(){ if(db){ db.doc('settings/parametri').get().then(function(d){ if(d.exists) apply(d.data()); }).catch(function(){}); } };
+  })();
 
   // ---------- alimentazione Claude (tre schemi) ----------
   var PUB_OPT = [
@@ -2234,6 +2295,7 @@ input,select,textarea{font-size:16px !important;}
     applyLastValues();
     loadDraftFromDb();
     loadMenuFromDb();
+    loadParametriFromDb();
     loadSchedeFromDb();
     loadCardsFromDb();
     pdfList();
