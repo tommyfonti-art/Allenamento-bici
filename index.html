@@ -290,7 +290,7 @@ input,select,textarea{font-size:16px !important;}
         <div class="pill-row" id="day-picker"></div>
         <button class="btn secondary small" id="edit-sched" type="button">Modifica schede</button>
       </div>
-      <div class="desc" id="pre-hint" style="margin:8px 0 4px">I numeri in grigio sono quelli dell'ultima volta e restano scritti: cambiali solo quando aumenti. Contano nello storico quando spunti la serie o li modifichi.</div>
+      <div class="desc" id="pre-hint" style="margin:8px 0 4px">I numeri in grigio sono quelli dell'ultima volta e restano scritti (prima le ripetizioni, poi i kg): cambiali solo quando aumenti. Contano nello storico quando spunti la serie o li modifichi.</div>
       <div id="exercise-list"></div>
       <div id="sched-editor" hidden></div>
       <div id="workout-foot">
@@ -2418,12 +2418,12 @@ input,select,textarea{font-size:16px !important;}
           '<input type="checkbox" class="check" data-field="done" data-set="1">'+
         '</div>';
       } else {
-      html += '<div class="set-grid"><span></span><span class="col-lbl">kg</span><span class="col-lbl">reps</span><span class="col-lbl">✓</span></div>';
+      html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span><span class="col-lbl">✓</span></div>';
       for(var n=1;n<=ex.serie;n++){
         html += '<div class="set-grid">'+
           '<span class="setnum">'+n+'</span>'+
-          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
           '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
+          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
           '<input type="checkbox" class="check" data-field="done" data-set="'+n+'">'+
         '</div>';
       }
@@ -2613,7 +2613,7 @@ input,select,textarea{font-size:16px !important;}
       function fmtSets(sets){
         return (sets || []).map(function(st){
           if(st.weight == null && st.reps == null) return 'fatto';
-          return (st.weight != null ? st.weight : '—') + '×' + (st.reps != null ? st.reps : '—');
+          return (st.reps != null ? st.reps : '—') + '×' + (st.weight != null ? st.weight + ' kg' : '—');
         }).join(' · ');
       }
       document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
