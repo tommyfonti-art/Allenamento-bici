@@ -909,11 +909,11 @@ input,select,textarea{font-size:16px !important;}
     function r(x){ return Math.round(x); }
     var NASCITA = new Date(1992,0,2);
     var SETTIMANA = [
-      ['Luned\u00ec', 'Gambe giorno 1, riscaldamento gambe, riabilitazione spalla', 50+300+60],
+      ['Luned\u00ec', 'Mobilit\u00e0 gambe, Gambe giorno 1, riabilitazione spalla', 30+180+40],
       ['Marted\u00ec', 'riposo', 0],
-      ['Mercoled\u00ec', 'riscaldamento gambe, riabilitazione spalla', 50+60],
+      ['Mercoled\u00ec', 'Mobilit\u00e0 gambe, riabilitazione spalla', 30+40],
       ['Gioved\u00ec', 'riposo', 0],
-      ['Venerd\u00ec', 'Gambe giorno 2, riscaldamento gambe (spalla a volte: +60)', 50+300],
+      ['Venerd\u00ec', 'Mobilit\u00e0 gambe, Gambe giorno 2 (spalla a volte: +40)', 30+180],
       ['Sabato', 'riposo', 0],
       ['Domenica', 'riposo', 0]
     ];
@@ -931,7 +931,7 @@ input,select,textarea{font-size:16px !important;}
         SETTIMANA.map(function(d){ var c = base + d[2]; tot += c;
           return '<tr><td><b>'+d[0]+'</b></td><td>'+d[1]+'</td><td>circa '+(r(c/10)*10)+'</td></tr>'; }).join('');
       var media = tot/7;
-      document.getElementById('par-week-note').textContent = 'Media della settimana: circa '+(r(media/10)*10)+' calorie al giorno. Stime usate per l\'allenamento: gambe circa 300, riscaldamento gambe circa 50, riabilitazione spalla circa 60. Ogni ora di bici in pi\u00f9: circa 400. Con '+k+' calorie al giorno, rispetto alla media sei a '+(k-media>=0?'+':'')+r(k-media)+' al giorno.';
+      document.getElementById('par-week-note').textContent = 'Media della settimana: circa '+(r(media/10)*10)+' calorie al giorno. Calcolate sulla tua scheda riabilitativa (circa 20 serie leggere nei giorni gambe, recupero di 2 minuti): gambe circa 180, mobilit\u00e0 gambe circa 30, riabilitazione spalla circa 40. Ogni ora di bici in pi\u00f9: circa 400. Con '+k+' calorie al giorno, rispetto alla media sei a '+(k-media>=0?'+':'')+r(k-media)+' al giorno.';
     }
     function render(){
       var kg = parseFloat(String(pesoEl.value).replace(',','.')) || 75;
