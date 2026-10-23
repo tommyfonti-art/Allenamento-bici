@@ -90,6 +90,7 @@ html,body{overscroll-behavior-y:none;}
 .set-grid{display:grid; grid-template-columns:28px 1fr 1fr 32px; gap:8px; align-items:center; margin-bottom:6px;}
 .set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
 .set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
+.set-grid input[type=number].pre{color:var(--muted);}
 .set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
 .ed-pick{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-top:12px; background:var(--surface-2);}
 .ed-pick-title{font-size:13px; font-weight:600; margin-bottom:6px;}
@@ -289,6 +290,7 @@ input,select,textarea{font-size:16px !important;}
         <div class="pill-row" id="day-picker"></div>
         <button class="btn secondary small" id="edit-sched" type="button">Modifica schede</button>
       </div>
+      <div class="desc" id="pre-hint" style="margin:8px 0 4px">I numeri in grigio sono quelli dell'ultima volta e restano scritti: cambiali solo quando aumenti. Contano nello storico quando spunti la serie o li modifichi.</div>
       <div id="exercise-list"></div>
       <div id="sched-editor" hidden></div>
       <div id="workout-foot">
@@ -2474,8 +2476,9 @@ input,select,textarea{font-size:16px !important;}
       var sets = [];
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         if(!row.querySelector('.setnum')) return;
-        var w = row.querySelector('[data-field=weight]').value;
-        var r = row.querySelector('[data-field=reps]').value;
+        var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
+        var w = wi.classList.contains('pre') ? '' : wi.value;
+        var r = ri.classList.contains('pre') ? '' : ri.value;
         var d = row.querySelector('[data-field=done]').checked;
         if(w || r || d) any = true;
         sets.push({w:w, r:r, d:!!d});
@@ -2493,8 +2496,9 @@ input,select,textarea{font-size:16px !important;}
         if(!num) return;
         var st = sets[parseInt(num.textContent,10)-1];
         if(!st) return;
-        row.querySelector('[data-field=weight]').value = st.w || '';
-        row.querySelector('[data-field=reps]').value = st.r || '';
+        var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
+        if(st.w){ wi.value = st.w; wi.classList.remove('pre'); } else if(!wi.classList.contains('pre')){ wi.value = ''; }
+        if(st.r){ ri.value = st.r; ri.classList.remove('pre'); } else if(!ri.classList.contains('pre')){ ri.value = ''; }
         row.querySelector('[data-field=done]').checked = !!st.d;
       });
     });
@@ -2561,6 +2565,7 @@ input,select,textarea{font-size:16px !important;}
     var list = document.getElementById('exercise-list');
     function onEdit(e){
       if(!e.target.closest('.set-grid')) return;
+      if(e.target.classList && e.target.classList.contains('pre') && e.type === 'input') e.target.classList.remove('pre');
       scheduleDraft(e.target.closest('.exercise'));
     }
     list.addEventListener('input', onEdit);
@@ -2575,14 +2580,36 @@ input,select,textarea{font-size:16px !important;}
   renderAllSchede();
 
   // Mostra in grigio i kg e le ripetizioni dell'ultima volta per lo stesso giorno
+  function lastKey(day){ return 'last-sets-'+day; }
+  function prefillLast(last, dayAtCall){
+    if(!last || dayAtCall !== currentDay) return;
+    var schedAtCall = findSched('allenamento', dayAtCall);
+    document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
+      var exDef = schedAtCall && schedAtCall.esercizi[i];
+      if(!exDef || exDef.semplice) return;
+      var found = (last.exercises || []).filter(function(e){ return e.name === exDef.nome; })[0];
+      if(!found) return;
+      found.sets.forEach(function(st, si){
+        [['weight', st.weight], ['reps', st.reps]].forEach(function(pair){
+          var inp = exEl.querySelector('[data-field='+pair[0]+'][data-set="'+(si+1)+'"]');
+          if(inp && pair[1] != null && (inp.value === '' || inp.classList.contains('pre'))){
+            inp.value = pair[1]; inp.classList.add('pre');
+          }
+        });
+      });
+    });
+  }
   function applyLastValues(){
-    if(!db) return;
     var dayAtCall = currentDay;
+    try{ prefillLast(JSON.parse(localStorage.getItem(lastKey(dayAtCall))||'null'), dayAtCall); }catch(e){}
+    if(!db) return;
     db.collection('sessions').orderBy('date','desc').limit(30).get().then(function(qs){
       if(dayAtCall !== currentDay) return;
       var sameDay = qs.docs.map(function(doc){ return doc.data(); }).filter(function(d){ return d.day === dayAtCall; });
       if(!sameDay.length) return;
       var last = sameDay[0];
+      try{ localStorage.setItem(lastKey(dayAtCall), JSON.stringify({date:last.date, exercises:last.exercises})); }catch(e){}
+      prefillLast(last, dayAtCall);
       function fmtSets(sets){
         return (sets || []).map(function(st){
           if(st.weight == null && st.reps == null) return 'fatto';
@@ -2627,9 +2654,11 @@ input,select,textarea{font-size:16px !important;}
       var sets = [];
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         if(row.querySelector('.setnum')){
-          var w = row.querySelector('[data-field=weight]').value;
-          var r = row.querySelector('[data-field=reps]').value;
+          var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
           var d = row.querySelector('[data-field=done]').checked;
+          var typed = (!wi.classList.contains('pre') && wi.value !== '') || (!ri.classList.contains('pre') && ri.value !== '');
+          var w = (typed || d) ? wi.value : '';
+          var r = (typed || d) ? ri.value : '';
           if(w || r || d){ sets.push({weight:w?parseFloat(w):null, reps:r?parseInt(r,10):null, done:!!d}); }
         }
       });
