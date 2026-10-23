@@ -364,7 +364,7 @@ input,select,textarea{font-size:16px !important;}
     <div class="card">
       <div class="eyebrow">Quanto mangio davvero</div>
       <h2>Diario cibo</h2>
-      <div class="desc">Segna ogni alimento con il suo peso, nell'ordine della giornata. Se leggi l'etichetta, scrivi le calorie per 100 grammi: il totale lo calcola l'app. Se non le sai, lascia vuoto e le calcoliamo insieme.</div>
+      <div class="desc">Segna ogni alimento con il suo peso, nell'ordine della giornata. Se leggi l'etichetta, scrivi le calorie per 100 grammi: il totale lo calcola l'app. Se il cibo è tra i tuoi, le calorie le metto io. Pasta, riso e pollo: se li pesi cotti, scrivi «cotta» o «cotto» nel nome.</div>
       <div class="pill-row" id="fl-type-picker">
         <button class="pill" data-type="riposo" aria-pressed="true">Riposo</button>
         <button class="pill" data-type="palestra" aria-pressed="false">Palestra</button>
@@ -439,7 +439,7 @@ input,select,textarea{font-size:16px !important;}
     </div>
     <div class="card">
       <h2>Quante volte a settimana</h2>
-      <div class="desc">Frequenze consigliate per un adulto (tabella dell'Istituto europeo di oncologia, basata su LARN 2024, linee guida CREA, piramide mediterranea e fondo mondiale per la ricerca sul cancro), confrontate con il tuo piano.</div>
+      <div class="desc">Frequenze consigliate per un adulto (tabella dell'Istituto europeo di oncologia, basata su LARN 2024, linee guida CREA, piramide mediterranea e fondo mondiale per la ricerca sul cancro), confrontate con il tuo piano così com'è adesso, con l'obiettivo scelto.</div>
       <table class="supp-table" id="par-freq"></table>
     </div>
     <div class="card">
@@ -980,9 +980,9 @@ input,select,textarea{font-size:16px !important;}
   var parRender = function(){};
 
   // ---------- piano della settimana ----------
-  var PW_VER = 2;
-  var PW_FOODS = {"yogurt_magro":{"n":"Yogurt magro","c":"proteine","k":36,"p":3.3,"h":4.0,"f":0.9,"s":0.6,"z":4.0,"b":0,"src":"CREA yogurt scremato"},"yogurt_intero":{"n":"Yogurt intero","c":"proteine","k":70,"p":3.8,"h":4.3,"f":3.9,"s":2.1,"z":4.3,"b":0,"src":"etichetta Tommi (70 kcal), macro CREA"},"pollo":{"n":"Petto di pollo (crudo)","c":"proteine","k":100,"p":23.3,"h":0,"f":0.8,"s":0.25,"z":0,"b":0,"src":"CREA"},"fagioli":{"n":"Fagioli in scatola (scolati)","c":"proteine","k":84,"p":6.4,"h":14.2,"f":0.55,"s":0.1,"z":0.6,"b":5.2,"src":"CREA media borlotti e cannellini"},"mozzarella":{"n":"Mozzarella","c":"proteine","k":253,"p":18.7,"h":0.7,"f":19.5,"s":11.5,"z":0.7,"b":0,"src":"CREA (saturi stimati)"},"feta":{"n":"Feta","c":"proteine","k":250,"p":15.6,"h":1.5,"f":20.2,"s":14.1,"z":1.5,"b":0,"src":"CREA (saturi stimati)"},"tonno":{"n":"Tonno al naturale (sgocciolato)","c":"proteine","k":103,"p":25.1,"h":0,"f":0.3,"s":0.1,"z":0,"b":0,"src":"CREA"},"speck":{"n":"Speck","c":"proteine","k":303,"p":28.3,"h":0,"f":20.9,"s":5.7,"z":0,"b":0,"src":"CREA"},"hamburger":{"n":"Hamburger di manzo e maiale (crudo)","c":"proteine","k":250,"p":17,"h":0,"f":20,"s":7.8,"z":0,"b":0,"src":"USDA macinato 80/20"},"bacon":{"n":"Bacon","c":"proteine","k":340,"p":15,"h":0.5,"f":30,"s":11,"z":0.5,"b":0,"src":"stima"},"uova":{"n":"Uova","c":"proteine","k":128,"p":12.4,"h":0,"f":8.7,"s":3.2,"z":0,"b":0,"src":"CREA"},"proteine_polvere":{"n":"Proteine in polvere","c":"proteine","k":370,"p":80,"h":5,"f":3.5,"s":2,"z":3,"b":0,"src":"media etichette (controlla la tua)"},"cotoletta":{"n":"Cotoletta di pollo impanata","c":"proteine","k":223,"p":18,"h":15,"f":10,"s":1.0,"z":0.6,"b":0.6,"src":"scheda prodotto cotoletta fritta"},"corn_flakes":{"n":"Corn flakes","c":"carboidrati","k":378,"p":7,"h":84,"f":0.9,"s":0.2,"z":8,"b":3,"src":"etichetta"},"farro_soffiato":{"n":"Farro soffiato","c":"carboidrati","k":370,"p":14,"h":69,"f":2.6,"s":0.5,"z":2,"b":7.1,"src":"etichetta"},"riso":{"n":"Riso (crudo)","c":"carboidrati","k":332,"p":6.7,"h":75,"f":0.4,"s":0.1,"z":0.2,"b":1,"src":"CREA"},"pasta":{"n":"Pasta (cruda)","c":"carboidrati","k":353,"p":10.9,"h":72.5,"f":1.4,"s":0.2,"z":3.5,"b":2.7,"src":"CREA"},"pane":{"n":"Pane","c":"carboidrati","k":254,"p":8,"h":52,"f":1,"s":0.2,"z":2,"b":3,"src":"etichetta Tommi (254 kcal)"},"patatine":{"n":"Patatine fritte (del pub)","c":"carboidrati","k":300,"p":3.5,"h":40,"f":15,"s":1.5,"z":0.5,"b":3.5,"src":"USDA patatine fritte da ristorante"},"patate":{"n":"Patate lesse","c":"carboidrati","k":80,"p":2,"h":17,"f":0.1,"s":0,"z":1,"b":1.5,"src":"CREA circa"},"verdura_mista":{"n":"Verdura mista (carote, peperoni, zucchine, cetrioli)","c":"verdura","k":22,"p":1,"h":3.8,"f":0.2,"s":0,"z":3,"b":1.8,"src":"media CREA"},"pomodori":{"n":"Pomodori","c":"verdura","k":17,"p":1,"h":2.8,"f":0.2,"s":0,"z":2.8,"b":1.2,"src":"CREA circa"},"insalata":{"n":"Insalata","c":"verdura","k":19,"p":1.8,"h":2.2,"f":0.4,"s":0,"z":2.2,"b":1.5,"src":"CREA lattuga circa"},"carote":{"n":"Carote","c":"verdura","k":35,"p":1.1,"h":7.6,"f":0.2,"s":0,"z":7.6,"b":3.1,"src":"CREA"},"cipolla":{"n":"Cipolla","c":"verdura","k":26,"p":1,"h":5.7,"f":0.1,"s":0,"z":5.7,"b":1.1,"src":"CREA"},"sedano":{"n":"Sedano","c":"verdura","k":20,"p":2.3,"h":2.4,"f":0.2,"s":0,"z":2.4,"b":1.6,"src":"CREA"},"peperoni":{"n":"Peperoni","c":"verdura","k":26,"p":0.9,"h":4.2,"f":0.3,"s":0,"z":4.2,"b":1.9,"src":"CREA"},"cetrioli":{"n":"Cetrioli","c":"verdura","k":14,"p":0.7,"h":1.8,"f":0.5,"s":0,"z":1.8,"b":0.8,"src":"CREA"},"zucchine":{"n":"Zucchine","c":"verdura","k":11,"p":1.3,"h":1.4,"f":0.1,"s":0,"z":1.4,"b":1.2,"src":"CREA"},"melanzane":{"n":"Melanzane","c":"verdura","k":18,"p":1.1,"h":2.6,"f":0.4,"s":0.1,"z":2.6,"b":2.6,"src":"CREA"},"pesche":{"n":"Pesche","c":"frutta","k":25,"p":0.7,"h":5.8,"f":0,"s":0,"z":5.8,"b":1.9,"src":"CREA (con buccia)"},"albicocche":{"n":"Albicocche","c":"frutta","k":28,"p":0.4,"h":6.8,"f":0.1,"s":0,"z":6.8,"b":1.5,"src":"CREA"},"pere":{"n":"Pere","c":"frutta","k":35,"p":0.3,"h":8.8,"f":0.1,"s":0,"z":8.8,"b":3.8,"src":"CREA"},"ciliegie":{"n":"Ciliegie","c":"frutta","k":38,"p":0.8,"h":9,"f":0.1,"s":0,"z":9,"b":1.3,"src":"CREA"},"uva":{"n":"Uva","c":"frutta","k":61,"p":0.5,"h":15.6,"f":0.1,"s":0,"z":15.6,"b":1.5,"src":"CREA"},"fragole":{"n":"Fragole","c":"frutta","k":27,"p":0.9,"h":5.3,"f":0.4,"s":0,"z":5.3,"b":1.6,"src":"CREA"},"mele":{"n":"Mele","c":"frutta","k":38,"p":0.2,"h":10,"f":0.1,"s":0,"z":10,"b":2.6,"src":"CREA"},"kiwi":{"n":"Kiwi","c":"frutta","k":44,"p":1.2,"h":9,"f":0.6,"s":0,"z":9,"b":2.2,"src":"CREA"},"banane":{"n":"Banane","c":"frutta","k":65,"p":1.2,"h":15.4,"f":0.3,"s":0.1,"z":12.8,"b":1.8,"src":"CREA"},"frutta_mista":{"n":"Frutta di stagione","c":"frutta","k":38,"p":0.6,"h":8.8,"f":0.2,"s":0,"z":8.8,"b":2.0,"src":"media CREA"},"olio":{"n":"Olio d'oliva","c":"grassi","k":899,"p":0,"h":0,"f":99.9,"s":14.5,"z":0,"b":0,"src":"CREA"},"avocado":{"n":"Avocado","c":"grassi","k":160,"p":2,"h":1.8,"f":14.7,"s":2.1,"z":0.7,"b":6.7,"src":"USDA"},"mandorle":{"n":"Mandorle","c":"grassi","k":603,"p":22,"h":4.6,"f":55.3,"s":4.6,"z":3.7,"b":12.7,"src":"CREA"}};
-  var PW_PLAN = {"lun":{"nome":"Lunedì","desc":"Giorno libero. Allenamento: mobilità gambe, gambe giorno 1 e riabilitazione spalla.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",60],["mele",150],["pane",60]]},{"n":"Spuntino","ora":"11:00","it":[["yogurt_magro",200],["mandorle",30]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",130],["pollo",160],["verdura_mista",200],["olio",15]]},{"n":"Prima dell'allenamento","ora":"14:30","it":[["banane",130],["farro_soffiato",30]]},{"n":"Dopo l'allenamento","ora":"17:30","it":[["proteine_polvere",30],["frutta_mista",150],["pane",60]]},{"n":"Cena","ora":"20:00","it":[["riso",110],["fagioli",200],["verdura_mista",200],["avocado",60],["olio",15]]}]},"mar":{"nome":"Martedì","desc":"Lavoro dalle 18 a mezzanotte. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",60],["kiwi",150],["pane",60]]},{"n":"Pranzo","ora":"13:00","it":[["riso",130],["fagioli",200],["feta",60],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",200],["proteine_polvere",25],["farro_soffiato",30],["pesche",200],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["pane",160],["uova",150],["verdura_mista",200],["olio",10]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150],["pane",60]]}]},"mer":{"nome":"Mercoledì","desc":"Lavoro dalle 8:30 alle 16. Allenamento: mobilità gambe e riabilitazione spalla.","meals":[{"n":"Colazione","ora":"7:45","it":[["yogurt_magro",200],["corn_flakes",60],["banane",130],["pane",60]]},{"n":"Spuntino al lavoro","ora":"10:30","it":[["frutta_mista",150],["mandorle",30]]},{"n":"Pranzo al lavoro","ora":"12:30","it":[["pasta",150],["pollo",130],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",200],["farro_soffiato",40],["pere",200],["pane",40]]},{"n":"Cena","ora":"20:00","it":[["pane",170],["tonno",110],["fagioli",150],["verdura_mista",200],["avocado",60],["olio",15]]}]},"gio":{"nome":"Giovedì","desc":"Lavoro la sera. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",60],["albicocche",200],["pane",60]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",150],["mozzarella",60],["fagioli",150],["verdura_mista",200],["olio",15]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",200],["proteine_polvere",25],["farro_soffiato",30],["ciliegie",150],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["hamburger",170],["pane",120],["verdura_mista",150],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"ven":{"nome":"Venerdì","desc":"Lavoro la sera. Allenamento: mobilità gambe e gambe giorno 2.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",60],["mele",150],["pane",60]]},{"n":"Pranzo","ora":"13:00","it":[["riso",140],["fagioli",200],["verdura_mista",200],["olio",25]]},{"n":"Prima dell'allenamento","ora":"14:30","it":[["banane",150],["farro_soffiato",40]]},{"n":"Dopo l'allenamento","ora":"17:00","it":[["proteine_polvere",30],["yogurt_magro",200],["frutta_mista",150],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["cotoletta",150],["patatine",80],["pane",90],["verdura_mista",150]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150],["pane",60]]}]},"sab":{"nome":"Sabato","desc":"Lavoro la sera. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",60],["mele",150],["pane",60]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",150],["fagioli",200],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",200],["proteine_polvere",25],["farro_soffiato",30],["fragole",200],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["hamburger",170],["pane",140],["verdura_mista",150],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150],["pane",40]]}]},"dom":{"nome":"Domenica","desc":"Una domenica lavori la sera e una no: scegli qui sotto. Se non lavori, il pasto al pub diventa la cena a casa.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",60],["kiwi",150],["pane",60]]},{"n":"Pranzo","ora":"13:00","it":[["patate",350],["uova",50],["speck",30],["fagioli",150],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",200],["proteine_polvere",25],["farro_soffiato",30],["pesche",200],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["pasta",130],["mozzarella",100],["pane",60],["verdura_mista",150],["olio",10]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150],["pane",40]]}]}};
+  var PW_VER = 3;
+  var PW_FOODS = {"yogurt_magro":{"n":"Yogurt magro","c":"proteine","k":36,"p":3.3,"h":4.0,"f":0.9,"s":0.6,"z":4.0,"b":0,"na":58,"src":"CREA yogurt scremato"},"yogurt_intero":{"n":"Yogurt intero","c":"proteine","k":70,"p":3.8,"h":4.3,"f":3.9,"s":2.1,"z":4.3,"b":0,"na":48,"src":"etichetta tua (70 kcal), macro CREA"},"pollo":{"n":"Petto di pollo (crudo)","c":"proteine","k":100,"p":23.3,"h":0,"f":0.8,"s":0.25,"z":0,"b":0,"na":33,"src":"CREA"},"fagioli":{"n":"Fagioli in scatola (scolati e sciacquati)","c":"proteine","k":84,"p":6.4,"h":14.2,"f":0.55,"s":0.1,"z":0.6,"b":5.2,"na":220,"src":"CREA media borlotti e cannellini; sodio ridotto del 40% sciacquandoli"},"mozzarella":{"n":"Mozzarella","c":"proteine","k":253,"p":18.7,"h":0.7,"f":19.5,"s":11.5,"z":0.7,"b":0,"na":203,"src":"CREA (saturi stimati)"},"feta":{"n":"Feta","c":"proteine","k":250,"p":15.6,"h":1.5,"f":20.2,"s":14.1,"z":1.5,"b":0,"na":1440,"src":"CREA (saturi stimati)"},"tonno":{"n":"Tonno al naturale (sgocciolato)","c":"proteine","k":103,"p":25.1,"h":0,"f":0.3,"s":0.1,"z":0,"b":0,"na":350,"src":"CREA; sodio da etichette"},"speck":{"n":"Speck","c":"proteine","k":303,"p":28.3,"h":0,"f":20.9,"s":5.7,"z":0,"b":0,"na":1557,"src":"CREA"},"hamburger":{"n":"Hamburger di manzo e maiale (crudo)","c":"proteine","k":250,"p":17,"h":0,"f":20,"s":7.8,"z":0,"b":0,"na":70,"src":"USDA macinato 80/20, senza sale"},"bacon":{"n":"Bacon","c":"proteine","k":340,"p":15,"h":0.5,"f":30,"s":11,"z":0.5,"b":0,"na":1700,"src":"stima"},"uova":{"n":"Uova","c":"proteine","k":128,"p":12.4,"h":0,"f":8.7,"s":3.2,"z":0,"b":0,"na":137,"src":"CREA"},"proteine_polvere":{"n":"Proteine in polvere","c":"proteine","k":370,"p":80,"h":5,"f":3.5,"s":2,"z":3,"b":0,"na":200,"src":"media etichette (controlla la tua)"},"cotoletta":{"n":"Cotoletta di pollo impanata e fritta","c":"proteine","k":250,"p":18,"h":15,"f":13,"s":1.8,"z":0.6,"b":0.6,"na":600,"src":"scheda prodotto più frittura (stima)"},"corn_flakes":{"n":"Corn flakes","c":"carboidrati","k":378,"p":7,"h":84,"f":0.9,"s":0.2,"z":8,"b":3,"na":452,"src":"etichetta"},"farro_soffiato":{"n":"Farro soffiato","c":"carboidrati","k":370,"p":14,"h":69,"f":2.6,"s":0.5,"z":2,"b":7.1,"na":5,"src":"etichetta"},"riso":{"n":"Riso (crudo)","c":"carboidrati","k":332,"p":6.7,"h":75,"f":0.4,"s":0.1,"z":0.2,"b":1,"na":5,"src":"CREA"},"pasta":{"n":"Pasta (cruda)","c":"carboidrati","k":353,"p":10.9,"h":72.5,"f":1.4,"s":0.2,"z":3.5,"b":2.7,"na":4,"src":"CREA"},"pane":{"n":"Pane","c":"carboidrati","k":254,"p":8,"h":52,"f":1,"s":0.2,"z":2,"b":3,"na":293,"src":"etichetta tua (254 kcal); sodio CREA"},"patatine":{"n":"Patatine fritte (del pub)","c":"carboidrati","k":300,"p":3.5,"h":40,"f":15,"s":1.5,"z":0.5,"b":3.5,"na":300,"src":"USDA patatine da ristorante; sale stimato"},"patate":{"n":"Patate lesse","c":"carboidrati","k":80,"p":2,"h":17,"f":0.1,"s":0,"z":1,"b":1.5,"na":7,"src":"CREA circa"},"verdura_mista":{"n":"Verdura mista (carote, peperoni, zucchine, cetrioli)","c":"verdura","k":22,"p":1,"h":3.8,"f":0.2,"s":0,"z":3,"b":1.8,"na":25,"src":"media CREA"},"pomodori":{"n":"Pomodori","c":"verdura","k":17,"p":1,"h":2.8,"f":0.2,"s":0,"z":2.8,"b":1.2,"na":9,"src":"CREA circa"},"insalata":{"n":"Insalata","c":"verdura","k":19,"p":1.8,"h":2.2,"f":0.4,"s":0,"z":2.2,"b":1.5,"na":9,"src":"CREA lattuga circa"},"carote":{"n":"Carote","c":"verdura","k":35,"p":1.1,"h":7.6,"f":0.2,"s":0,"z":7.6,"b":3.1,"na":95,"src":"CREA"},"cipolla":{"n":"Cipolla","c":"verdura","k":26,"p":1,"h":5.7,"f":0.1,"s":0,"z":5.7,"b":1.1,"na":10,"src":"CREA"},"sedano":{"n":"Sedano","c":"verdura","k":20,"p":2.3,"h":2.4,"f":0.2,"s":0,"z":2.4,"b":1.6,"na":140,"src":"CREA"},"peperoni":{"n":"Peperoni","c":"verdura","k":26,"p":0.9,"h":4.2,"f":0.3,"s":0,"z":4.2,"b":1.9,"na":2,"src":"CREA"},"cetrioli":{"n":"Cetrioli","c":"verdura","k":14,"p":0.7,"h":1.8,"f":0.5,"s":0,"z":1.8,"b":0.8,"na":2,"src":"CREA"},"zucchine":{"n":"Zucchine","c":"verdura","k":11,"p":1.3,"h":1.4,"f":0.1,"s":0,"z":1.4,"b":1.2,"na":3,"src":"CREA"},"melanzane":{"n":"Melanzane","c":"verdura","k":18,"p":1.1,"h":2.6,"f":0.4,"s":0.1,"z":2.6,"b":2.6,"na":2,"src":"CREA"},"pesche":{"n":"Pesche","c":"frutta","k":25,"p":0.7,"h":5.8,"f":0,"s":0,"z":5.8,"b":1.9,"na":2,"src":"CREA (con buccia)"},"albicocche":{"n":"Albicocche","c":"frutta","k":28,"p":0.4,"h":6.8,"f":0.1,"s":0,"z":6.8,"b":1.5,"na":1,"src":"CREA"},"pere":{"n":"Pere","c":"frutta","k":35,"p":0.3,"h":8.8,"f":0.1,"s":0,"z":8.8,"b":3.8,"na":2,"src":"CREA"},"ciliegie":{"n":"Ciliegie","c":"frutta","k":38,"p":0.8,"h":9,"f":0.1,"s":0,"z":9,"b":1.3,"na":3,"src":"CREA"},"uva":{"n":"Uva","c":"frutta","k":61,"p":0.5,"h":15.6,"f":0.1,"s":0,"z":15.6,"b":1.5,"na":1,"src":"CREA"},"fragole":{"n":"Fragole","c":"frutta","k":27,"p":0.9,"h":5.3,"f":0.4,"s":0,"z":5.3,"b":1.6,"na":2,"src":"CREA"},"mele":{"n":"Mele (senza buccia)","c":"frutta","k":53,"p":0.3,"h":13.7,"f":0.1,"s":0,"z":13.7,"b":2.0,"na":2,"src":"CREA"},"kiwi":{"n":"Kiwi","c":"frutta","k":44,"p":1.2,"h":9,"f":0.6,"s":0,"z":9,"b":2.2,"na":4,"src":"CREA"},"banane":{"n":"Banane","c":"frutta","k":65,"p":1.2,"h":15.4,"f":0.3,"s":0.1,"z":12.8,"b":1.8,"na":1,"src":"CREA"},"frutta_mista":{"n":"Frutta di stagione","c":"frutta","k":45,"p":0.5,"h":10.5,"f":0.2,"s":0,"z":10.5,"b":2.4,"na":2,"src":"media CREA di mele, pere, kiwi, uva"},"olio":{"n":"Olio d'oliva","c":"grassi","k":899,"p":0,"h":0,"f":99.9,"s":14.5,"z":0,"b":0,"na":0,"src":"CREA"},"avocado":{"n":"Avocado","c":"grassi","k":160,"p":2,"h":1.8,"f":14.7,"s":2.1,"z":0.7,"b":6.7,"na":7,"src":"USDA"},"mandorle":{"n":"Mandorle","c":"grassi","fix":1,"k":603,"p":22,"h":4.6,"f":55.3,"s":4.6,"z":3.7,"b":12.7,"na":1,"src":"CREA (non salate)"}};
+  var PW_PLAN = {"lun":{"nome":"Lunedì","desc":"Giorno libero. Allenamento: mobilità gambe, gambe giorno 1 e riabilitazione spalla.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_intero",200],["corn_flakes",30],["mele",150],["pane",60]]},{"n":"Spuntino","ora":"11:00","it":[["yogurt_magro",150],["mandorle",30]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",140],["pollo",160],["verdura_mista",200],["olio",20]]},{"n":"Prima dell'allenamento","ora":"14:30","it":[["banane",130],["farro_soffiato",30]]},{"n":"Dopo l'allenamento","ora":"17:30","it":[["proteine_polvere",30],["frutta_mista",150],["pane",60]]},{"n":"Cena","ora":"20:00","it":[["riso",120],["fagioli",150],["verdura_mista",200],["olio",20]]}]},"mar":{"nome":"Martedì","desc":"Lavoro dalle 18 a mezzanotte. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_intero",200],["corn_flakes",30],["kiwi",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["riso",150],["fagioli",100],["mozzarella",60],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",150],["proteine_polvere",25],["farro_soffiato",25],["pere",150],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["pane",130],["uova",150],["verdura_mista",200],["olio",10]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150],["farro_soffiato",20]]}]},"mer":{"nome":"Mercoledì","desc":"Lavoro dalle 8:30 alle 16. Allenamento: mobilità gambe e riabilitazione spalla.","meals":[{"n":"Colazione","ora":"7:45","it":[["yogurt_intero",200],["corn_flakes",30],["banane",130],["pane",50]]},{"n":"Spuntino al lavoro","ora":"10:30","it":[["frutta_mista",150],["mandorle",30]]},{"n":"Pranzo al lavoro","ora":"12:30","it":[["pasta",170],["pollo",130],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",150],["farro_soffiato",30],["pere",150]]},{"n":"Cena","ora":"20:00","it":[["pane",100],["riso",60],["tonno",110],["fagioli",100],["verdura_mista",200],["avocado",60],["olio",15]]}]},"gio":{"nome":"Giovedì","desc":"Lavoro la sera. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",30],["kiwi",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",160],["mozzarella",60],["fagioli",100],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",150],["proteine_polvere",25],["farro_soffiato",25],["mele",150],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["hamburger",170],["pane",120],["verdura_mista",200],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"ven":{"nome":"Venerdì","desc":"Lavoro la sera. Allenamento: mobilità gambe e gambe giorno 2.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_intero",200],["farro_soffiato",30],["mele",150],["pane",30]]},{"n":"Pranzo","ora":"13:00","it":[["riso",190],["fagioli",100],["verdura_mista",200],["avocado",50],["olio",20]]},{"n":"Prima dell'allenamento","ora":"14:30","it":[["banane",150],["farro_soffiato",20]]},{"n":"Dopo l'allenamento","ora":"17:00","it":[["proteine_polvere",30],["yogurt_magro",150],["farro_soffiato",30],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["cotoletta",150],["pane",80],["verdura_mista",200],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["banane",130]]}]},"sab":{"nome":"Sabato","desc":"Lavoro la sera. Nessun allenamento.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",30],["uva",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["pasta",160],["fagioli",150],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",150],["proteine_polvere",25],["farro_soffiato",25],["pere",150],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["hamburger",170],["pane",120],["verdura_mista",200],["olio",5]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]},"dom":{"nome":"Domenica","desc":"Una domenica lavori la sera e una no: scegli qui sotto. Se non lavori, il pasto al pub diventa la cena a casa.","meals":[{"n":"Colazione","ora":"9:00","it":[["yogurt_magro",200],["corn_flakes",30],["kiwi",150],["pane",50]]},{"n":"Pranzo","ora":"13:00","it":[["patate",350],["uova",50],["speck",30],["fagioli",100],["verdura_mista",200],["olio",20]]},{"n":"Merenda","ora":"16:30","it":[["yogurt_magro",150],["proteine_polvere",25],["farro_soffiato",25],["mele",150],["mandorle",30]]},{"n":"Pasto al pub","ora":"19:30","it":[["pasta",140],["mozzarella",100],["pane",40],["verdura_mista",200],["olio",10]]},{"n":"Fine turno","ora":"dopo mezzanotte","it":[["frutta_mista",150]]}]}};
   var PW_CATS = [['proteine','Proteine'],['carboidrati','Carboidrati'],['verdura','Verdura'],['frutta','Frutta'],['grassi','Grassi']];
   var PW_EXTRA = [
     {k:['tacchino'], n:'Tacchino (petto, crudo)', c:'proteine', v:[107,23.8,0,1,0.3,0,0]},
@@ -1047,21 +1047,23 @@ input,select,textarea{font-size:16px !important;}
   var PW_OBJ = {
     perdita:      {label:'Perdita di peso leggera', delta:-300, min:-0.35, max:-0.1, ritmo:'scendere tra 100 e 350 grammi a settimana', nota:'Circa 300 calorie in meno del mantenimento: dovresti perdere tra mezzo chilo e un chilo al mese. Le proteine restano uguali; calano pane, pasta, riso, frutta e grassi.'},
     mantenimento: {label:'Mantenimento', delta:0, min:-0.1, max:0.1, ritmo:'restare fermo, entro 100 grammi a settimana in più o in meno', nota:'Le calorie stimate per restare fermo di peso.'},
-    aumento:      {label:'Aumento di peso leggero', delta:300, min:0.1, max:0.25, ritmo:'salire tra 100 e 250 grammi a settimana', nota:'Circa 300 calorie in più del mantenimento (il 10%, il minimo consigliato per aumentare massa): dovresti salire tra mezzo chilo e un chilo al mese. Se tutto questo cibo è troppo da un giorno all\'altro, fai prima una settimana in mantenimento.'}
+    aumento:      {label:'Aumento di peso leggero', delta:300, min:0.1, max:0.25, ritmo:'salire tra 100 e 250 grammi a settimana', nota:'Circa 300 calorie in più del mantenimento (il 10%, il minimo consigliato per aumentare massa): dovresti salire tra mezzo chilo e un chilo al mese. Nei primi giorni il peso può salire anche di un chilo per acqua e scorte nei muscoli: è normale e il controllo non ne tiene conto. Se tutto questo cibo è troppo da un giorno all\'altro, fai prima una settimana in mantenimento.'}
   };
-  var PW_SCALE = {carboidrati:1, frutta:1, grassi:1};
+  var PW_SCALE = {carboidrati:1, grassi:1};
   var PW_RULES = [
     'Pesati 2-3 mattine a settimana nella scheda Progressi, appena sveglio e dopo il bagno. Qui in alto ti dico se le calorie vanno bene e di quanto cambiare la regolazione.',
     'Uova: al massimo 4 a settimana. Formaggi freschi come mozzarella e feta: 2-3 volte a settimana.',
     'Carne rossa: i due hamburger del pub. Speck e bacon il meno possibile: sono carni lavorate.',
     'Pollo 3 volte, cotoletta compresa: un po\' più di quanto dicono le linee guida, al posto del pesce che non mangi.',
     'Pesce: le linee guida lo consigliano 3-4 volte a settimana; tu mangi solo il tonno. L\'olio di alghe con omega 3 degli integratori copre la parte più importante.',
-    'Frutta secca: 30 grammi al giorno (mandorle, oppure noci). È consigliata e aiuta ad arrivare alle calorie.',
-    'Sale: al massimo 5 grammi al giorno. Pane, feta, speck e i cibi del pub ne hanno già: non aggiungerne.',
+    'Frutta secca: circa 30 grammi al giorno (mandorle non salate, oppure noci). È consigliata e aiuta ad arrivare alle calorie senza mangiare troppo volume.',
+    'Sale: al massimo 5 grammi al giorno in tutto. Nei totali vedi quello che hanno già i cibi: cucina con pochissimo sale, scegli pane con poco sale e sciacqua i fagioli in scatola (tolgono circa il 40% del sale). La cotoletta del pub da sola ne ha più di 2 grammi.',
+    'Fibra e legumi: se non sei abituato, aumentali piano nelle prime due-tre settimane e bevi di più, così eviti gonfiore.',
+    'Frutta di stagione: adesso mele, pere, kiwi, uva e banane. In estate puoi cambiarle dal menu con pesche, albicocche, ciliegie e fragole.',
     'Bevande: birra, cocktail, bibite e succhi non sono nel piano. Una birra media da 0,4 litri vale circa 170 calorie, come 70 grammi di pane.',
     'Il pasto del pub è senza salse, formaggio e bacon: se li aggiungi, contali.',
     'Bici: per ogni ora in più aggiungi circa 400 calorie (pane, banane, frullato dopo).',
-    'Niente cavoli e broccoli. Yogurt magro: se preferisci l\'intero, cambialo dal menu.',
+    'Niente cavoli e broccoli. Yogurt intero a colazione nei giorni con meno carne e formaggio; magro negli altri, per tenere bassi i grassi saturi. Puoi cambiarli dal menu: i grammi restano uguali.',
     'I grammi sono un riferimento: a occhio va bene.'
   ];
 
@@ -1085,6 +1087,7 @@ input,select,textarea{font-size:16px !important;}
   function pwKcal(n){ n = pwR(n); return (n>=1000 ? Math.floor(n/1000)+'.'+String(n%1000).padStart(3,'0') : String(n)); }
   function pwDayKey(){ return ['dom','lun','mar','mer','gio','ven','sab'][new Date().getDay()]; }
   function pwOggi(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function pwOggiPiu(iso, n){ var p = iso.split('-'); var d = new Date(+p[0], +p[1]-1, +p[2]+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
   function pwGetDay(k){ return pwPlan[k] || PW_PLAN[k]; }
 
   function pwBuildFoods(){
@@ -1096,8 +1099,8 @@ input,select,textarea{font-size:16px !important;}
   function pwApplyState(s){
     if(!s) return;
     if(s.obj && PW_OBJ[s.obj]) pwObj = s.obj;
-    if(s.ver === PW_VER){
-      if(s.plan && typeof s.plan === 'object') pwPlan = s.plan;
+    if(s.ver === PW_VER && s.plan && typeof s.plan === 'object') pwPlan = s.plan;
+    if(s.ver >= 2){
       if(typeof s.adj === 'number') pwAdj = Math.max(-500, Math.min(500, s.adj));
       if(typeof s.dom === 'boolean') pwDom = s.dom;
       if(typeof s.adjDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.adjDate)) pwAdjDate = s.adjDate;
@@ -1105,7 +1108,7 @@ input,select,textarea{font-size:16px !important;}
   }
   function pwApplyCibi(c){
     if(!c) return;
-    if(c.ver === PW_VER){ pwCustom = c.custom || {}; pwEdits = c.edits || {}; }
+    if(c.ver >= 2){ pwCustom = c.custom || {}; pwEdits = c.edits || {}; }
     else if(c.foods && c.custom){   // formato vecchio: tengo solo i cibi aggiunti da te
       pwCustom = {}; Object.keys(c.custom).forEach(function(id){ if(c.foods[id]) pwCustom[id] = c.foods[id]; });
     }
@@ -1143,7 +1146,7 @@ input,select,textarea{font-size:16px !important;}
       if(!d.exists) return;
       var x = d.data() || {}, c = null;
       try{ c = JSON.parse(x.data); }catch(e){}
-      if(c){ if(x.ver === PW_VER) c.ver = PW_VER; pwApplyCibi(c); try{ localStorage.setItem('cibi-sett-v2', JSON.stringify({ver:PW_VER, custom:pwCustom, edits:pwEdits})); }catch(e){} pwRender(); }
+      if(c){ if(x.ver >= 2) c.ver = x.ver; pwApplyCibi(c); try{ localStorage.setItem('cibi-sett-v2', JSON.stringify({ver:PW_VER, custom:pwCustom, edits:pwEdits})); }catch(e){} pwRender(); }
     }).catch(function(){});
   };
 
@@ -1152,12 +1155,12 @@ input,select,textarea{font-size:16px !important;}
   function pwDelta(){ return PW_OBJ[pwObj].delta; }
   function pwTarget(k){ return pwMant(k) + pwDelta() + pwAdj; }
   function pwItemTot(id, g){
-    var f = pwFoods[id]; if(!f) return {k:0,p:0,h:0,f:0,s:0,z:0,b:0};
+    var f = (typeof id === 'object') ? id : pwFoods[id]; if(!f) return {k:0,p:0,h:0,f:0,s:0,z:0,b:0,na:0};
     var m = g/100;
-    return {k:f.k*m, p:f.p*m, h:f.h*m, f:f.f*m, s:f.s*m, z:f.z*m, b:f.b*m};
+    return {k:f.k*m, p:f.p*m, h:f.h*m, f:f.f*m, s:f.s*m, z:f.z*m, b:f.b*m, na:(f.na||0)*m};
   }
   function pwSum(list){
-    var t = {k:0,p:0,h:0,f:0,s:0,z:0,b:0};
+    var t = {k:0,p:0,h:0,f:0,s:0,z:0,b:0,na:0};
     list.forEach(function(it){ var x = pwItemTot(it[0], it[1]); Object.keys(t).forEach(function(q){ t[q] += x[q]; }); });
     return t;
   }
@@ -1171,7 +1174,7 @@ input,select,textarea{font-size:16px !important;}
     });
     return {nome:d.nome, desc:d.desc, meals:meals};
   }
-  function pwIsScaled(it){ var f = pwFoods[it[0]]; return !!(f && PW_SCALE[f.c]) && !it[2]; }
+  function pwIsScaled(it){ var f = pwFoods[it[0]]; return !!(f && PW_SCALE[f.c] && !f.fix) && !it[2]; }   // la frutta secca resta a 30 g
   // pane, pasta, riso, frutta e grassi si allargano o si stringono per arrivare alle calorie del giorno;
   // proteine, verdura e i grammi fissati a mano restano come sono
   function pwFactor(k){
@@ -1182,11 +1185,28 @@ input,select,textarea{font-size:16px !important;}
   }
   function pwScaledDay(k){
     var v = pwDayView(k), f = pwFactor(k);
-    return {nome:v.nome, desc:v.desc, f:f, meals:v.meals.map(function(m){
+    var meals = v.meals.map(function(m){
       return {n:m.n, ora:m.ora, idx:m.idx, it:m.it.map(function(it){
-        return [it[0], pwIsScaled(it) ? Math.max(5, pwR5(it[1]*f)) : it[1], !!it[2]];
+        var sc = pwIsScaled(it), g = it[1];
+        if(sc) g = (pwFoods[it[0]].c === 'grassi') ? Math.max(1, pwR(it[1]*f)) : Math.max(5, pwR5(it[1]*f));
+        return [it[0], g, !!it[2], sc];
       })};
-    })};
+    });
+    // gli arrotondamenti a 5 grammi possono spostare il totale: correggo col carboidrato più grande, 5 grammi alla volta
+    var all = [], tg = pwTarget(k);
+    meals.forEach(function(m){ m.it.forEach(function(it){ all.push(it); }); });
+    var big = all.filter(function(it){ return it[3] && pwFoods[it[0]].c === 'carboidrati'; })
+      .sort(function(a,b){ return pwFoods[b[0]].k*b[1] - pwFoods[a[0]].k*a[1]; })[0];
+    if(big && f > 0.5 && f < 1.6){
+      var step = pwFoods[big[0]].k*5/100;
+      for(var n=0; n<8; n++){
+        var tot = 0; all.forEach(function(it){ tot += pwItemTot(it[0], it[1]).k; });
+        if(Math.abs(tg - tot) <= step/2) break;
+        big[1] = Math.max(5, big[1] + (tg > tot ? 5 : -5));
+      }
+    }
+    meals.forEach(function(m){ m.it.forEach(function(it){ it.length = 3; }); });
+    return {nome:v.nome, desc:v.desc, f:f, meals:meals};
   }
   function pwDayItems(k){ var out = []; pwScaledDay(k).meals.forEach(function(m){ m.it.forEach(function(i){ out.push(i); }); }); return out; }
   function pwEditable(k){ if(!pwPlan[k]) pwPlan[k] = pwClone(PW_PLAN[k]); return pwPlan[k]; }
@@ -1206,13 +1226,14 @@ input,select,textarea{font-size:16px !important;}
     }).catch(function(){ pwPesate = null; pwRenderTrend(); });
   }
   function pwTrend(){
-    if(!pwPesate || !pwPesate.length) return {n:0};
+    if(!pwPesate || !pwPesate.length) return {n:0, span:0};
     var arr = pwPesate.slice().sort(function(a,b){ return pwGiorni(a.date) - pwGiorni(b.date); });
     var last = pwGiorni(arr[arr.length-1].date);
-    var da = pwAdjDate ? pwGiorni(pwAdjDate) : -Infinity;
+    // i primi 10 giorni dopo un cambio di calorie il peso si muove per acqua e scorte nei muscoli: non li uso
+    var da = pwAdjDate ? pwGiorni(pwAdjDate) + 10 : -Infinity;
     var win = arr.filter(function(x){ var g = pwGiorni(x.date); return g > last - 28 && g >= da; });
     var out = {n:win.length, ultimo:arr[arr.length-1], span: win.length ? last - pwGiorni(win[0].date) : 0};
-    if(win.length < 5 || out.span < 14) return out;
+    if(win.length < 6 || out.span < 14) return out;
     var mx = 0, my = 0;
     win.forEach(function(x){ mx += pwGiorni(x.date); my += x.weight; });
     mx /= win.length; my /= win.length;
@@ -1222,11 +1243,11 @@ input,select,textarea{font-size:16px !important;}
     out.rate = sxy/sxx*7;     // kg a settimana
     return out;
   }
-  // il peso oscilla da un giorno all'altro: consiglio di cambiare solo se si esce dall'intervallo di più di 50 grammi a settimana
+  // il peso oscilla da un giorno all'altro: consiglio di cambiare solo se si esce dall'intervallo di più di 100 grammi a settimana
   function pwConsiglio(t){
     var o = PW_OBJ[pwObj], r = t.rate;
-    if(r < o.min - 0.05) return (o.min - r > 0.2) ? 200 : 100;
-    if(r > o.max + 0.05) return (r - o.max > 0.2) ? -200 : -100;
+    if(r < o.min - 0.1) return (o.min - r > 0.3) ? 200 : 100;
+    if(r > o.max + 0.1) return (r - o.max > 0.3) ? -200 : -100;
     return 0;
   }
   function pwRenderTrend(){
@@ -1234,10 +1255,11 @@ input,select,textarea{font-size:16px !important;}
     document.getElementById('pw-adj-val').textContent = (pwAdj>0?'+':'')+pwAdj+' calorie';
     var t = pwTrend(), o = PW_OBJ[pwObj];
     var rangeTxt = o.ritmo;
-    if(!t.n){ el.innerHTML = 'Nessuna pesata ancora. Pesati 2-3 mattine a settimana nella scheda Progressi: dopo due settimane qui ti dico se le calorie vanno bene. Per «'+pwEsc(o.label.toLowerCase())+'» il peso dovrebbe '+rangeTxt+'.'; return; }
-    var ult = 'Ultima pesata: '+pwNum(t.ultimo.weight)+' kg il '+fmtDate(t.ultimo.date)+'. ';
-    var dal = pwAdjDate ? ' dal '+fmtDate(pwAdjDate)+', giorno dell\'ultimo cambio di obiettivo o regolazione' : '';
-    if(t.rate == null){ el.innerHTML = pwEsc(ult)+'Per capire la tendenza servono almeno 5 pesate in due settimane'+pwEsc(dal)+' (ora ne ho '+t.n+'). Per «'+pwEsc(o.label.toLowerCase())+'» il peso dovrebbe '+rangeTxt+'.'; return; }
+    if(!t.n && !(pwPesate && pwPesate.length)){ el.innerHTML = 'Nessuna pesata ancora. Pesati 2-3 mattine a settimana nella scheda Progressi. Dal decimo giorno dopo un cambio di calorie, e per almeno due settimane, qui ti dico se le calorie vanno bene. Per «'+pwEsc(o.label.toLowerCase())+'» il peso dovrebbe '+rangeTxt+'.'; return; }
+    var ultimo = t.ultimo || (pwPesate && pwPesate.length ? pwPesate.slice().sort(function(a,b){ return pwGiorni(b.date) - pwGiorni(a.date); })[0] : null);
+    var ult = ultimo ? 'Ultima pesata: '+pwNum(ultimo.weight)+' kg il '+fmtDate(ultimo.date)+'. ' : '';
+    var inizio = pwAdjDate ? fmtDate(pwOggiPiu(pwAdjDate, 10)) : '';
+    if(t.rate == null){ el.innerHTML = pwEsc(ult)+'Per capire la tendenza uso le pesate'+(inizio ? ' dal '+pwEsc(inizio)+' (i primi 10 giorni dopo un cambio il peso si muove per acqua e scorte nei muscoli)' : '')+': ne servono almeno 6, distribuite su almeno due settimane. Ora ne ho '+t.n+(t.n ? ' in '+t.span+' giorni' : '')+'. Per «'+pwEsc(o.label.toLowerCase())+'» il peso dovrebbe '+rangeTxt+'.'; return; }
     var g = pwR(t.rate*1000), c = pwConsiglio(t);
     var h = pwEsc(ult)+'Nelle ultime settimane il peso '+(g>=0?'sale':'scende')+' di circa '+Math.abs(g)+' grammi a settimana. Per «'+pwEsc(o.label.toLowerCase())+'» il peso dovrebbe '+rangeTxt+'. ';
     if(!c) h += '<b>Va bene così: non cambiare nulla.</b>';
@@ -1302,9 +1324,10 @@ input,select,textarea{font-size:16px !important;}
       ['Grassi', pwR(t.f)+' g ('+fp+'%). Riferimento: 20-35%, meglio fino al 30%', fpr>=19.5 && fpr<30.5 ? 'dentro' : (fpr>=30.5 && fpr<35.5 ? 'accettabile' : (fpr<19.5?'sotto':'sopra'))],
       ['Grassi saturi', pwR(t.s)+' g ('+sp+'%). Riferimento: meno del 10%', spr<10 ? 'dentro' : 'sopra'],
       ['Zuccheri totali', pwR(t.z)+' g ('+zp+'%). Riferimento: meno del 15%', zpr<15 ? 'dentro' : 'sopra'],
-      ['Fibra', pwR(t.b)+' g. Riferimento per queste calorie: almeno '+fibMin+' g', t.b>=fibMin ? 'dentro' : 'sotto']
+      ['Fibra', pwR(t.b)+' g. Riferimento per queste calorie: almeno '+fibMin+' g', t.b>=fibMin ? 'dentro' : 'sotto'],
+      ['Sale', pwNum(Math.round(t.na*2.5/100)/10)+' g dagli alimenti, senza quello che aggiungi cucinando e senza quello dei piatti del pub. Riferimento: al massimo 5 g in tutto', t.na*2.5/1000 <= 3.5 ? 'dentro, se cucini con poco sale' : (t.na*2.5/1000 <= 5 ? 'al limite: cucina quasi senza sale' : 'sopra')]
     ];
-    var col = {dentro:'var(--success)', sopra:'var(--danger)', sotto:'var(--danger)', 'alto ma accettabile':'var(--muted)', accettabile:'var(--muted)'};
+    var col = {dentro:'var(--success)', sopra:'var(--danger)', sotto:'var(--danger)', 'alto ma accettabile':'var(--muted)', accettabile:'var(--muted)', 'dentro, se cucini con poco sale':'var(--success)', 'al limite: cucina quasi senza sale':'var(--muted)'};
     document.getElementById('pw-totals').innerHTML = rows.map(function(r){
       return '<tr><td class="sname">'+r[0]+'</td><td class="swhat">'+r[1]+'<br><span style="color:'+col[r[2]]+';font-weight:600">'+r[2]+'</span></td></tr>';
     }).join('');
@@ -1320,8 +1343,8 @@ input,select,textarea{font-size:16px !important;}
         var fonte = f.src ? '<div class="pw-u" style="width:100%">Fonte: '+pwEsc(f.src)+(pwEdits[id]?' (cambiato a mano)':'')+'</div>' : '';
         html += '<details class="pw-fd" data-id="'+id+'"><summary>'+pwEsc(f.n)+' <span class="pw-u">'+pwR(f.k)+' kcal per 100 g</span>'+stima+'</summary>'+
           '<div class="pw-ed">'+fonte+
-          [['k','Calorie'],['p','Proteine'],['h','Carboidrati'],['f','Grassi'],['s','Grassi saturi'],['z','Zuccheri'],['b','Fibra']].map(function(q){
-            return '<label>'+q[1]+' <input type="number" inputmode="decimal" step="any" data-q="'+q[0]+'" value="'+f[q[0]]+'"></label>';
+          [['k','Calorie'],['p','Proteine'],['h','Carboidrati'],['f','Grassi'],['s','Grassi saturi'],['z','Zuccheri'],['b','Fibra'],['na','Sodio (mg)']].map(function(q){
+            return '<label>'+q[1]+' <input type="number" inputmode="decimal" step="any" data-q="'+q[0]+'" value="'+(f[q[0]]==null?'':f[q[0]])+'"></label>';
           }).join('')+
           (pwCustom[id] ? '<button class="btn-ghost pw-del" type="button">Togli questo cibo</button>' : '')+
           (pwEdits[id] ? '<button class="btn-ghost pw-unedit" type="button">Rimetti i valori originali</button>' : '')+
@@ -1349,7 +1372,8 @@ input,select,textarea{font-size:16px !important;}
     var g = shown;
     if(oldF){
       var oldK = oldF.k*shown/100;
-      if(newF.c === 'verdura'){ g = shown; }
+      var stesso = pwStem(pwNorm(oldF.n).split(' ')[0]) === pwStem(pwNorm(newF.n).split(' ')[0]);
+      if(newF.c === 'verdura' || stesso){ g = shown; }
       else if(newF.c === 'proteine' && oldF.p > 0 && newF.p > 0){
         g = shown*oldF.p/newF.p;
         if(newF.k > 0 && newF.k*g/100 > oldK*1.5) g = oldK*1.5*100/newF.k;
@@ -1357,7 +1381,7 @@ input,select,textarea{font-size:16px !important;}
     }
     g = Math.max(5, pwR5(g));
     var nuovo = [newId, g];
-    if(PW_SCALE[newF.c]) nuovo[1] = g/f;
+    if(PW_SCALE[newF.c] && !newF.fix) nuovo[1] = g/f;
     d.meals[mIdx].it[i] = nuovo;
   }
   document.getElementById('pw-obj-picker').addEventListener('click', function(e){
@@ -1436,6 +1460,7 @@ input,select,textarea{font-size:16px !important;}
     if(ex){
       id = pwSlug(ex.n); if(pwFoods[id]){ msg.textContent = 'C\'è già: '+pwFoods[id].n+'.'; return; }
       f = {n:ex.n, c:ex.c, k:ex.v[0], p:ex.v[1], h:ex.v[2], f:ex.v[3], s:ex.v[4], z:ex.v[5], b:ex.v[6], src:'tabelle CREA o USDA, valori medi'};
+      if(/noci|nocciole|frutta secca/i.test(ex.n)) f.fix = 1;
     } else {
       cat = cat || pwCategory(text);
       if(!cat){ pwAsk(text); return; }
@@ -1505,23 +1530,34 @@ input,select,textarea{font-size:16px !important;}
     }
     return null;
   }
+  // nel diario: se scrivi «cotto/cotta» per pasta, riso e pollo uso i valori da cotti
+  var PW_COTTI = {
+    pasta: {n:'Pasta cotta', c:'carboidrati', k:137, p:4.7, h:28, f:0.5, s:0.1, z:1.3, b:1.5, na:1, src:'CREA pasta di semola bollita, senza sale'},
+    riso:  {n:'Riso cotto', c:'carboidrati', k:100, p:2, h:23, f:0.1, s:0, z:0.1, b:0.2, na:1, src:'CREA riso bollito, senza sale'},
+    pollo: {n:'Petto di pollo cotto', c:'proteine', k:129, p:30.2, h:0, f:0.9, s:0.29, z:0, b:0, na:46, src:'CREA petto di pollo in padella'}
+  };
+  function pwDiaryFood(name){
+    var id = pwMatch(name); if(!id) return null;
+    if(PW_COTTI[id] && /cott|bollit|lessat|padella|grigli|forno|arrost/.test(pwNorm(name))) return PW_COTTI[id];
+    return pwFoods[id];
+  }
   function flWeekday(){
     var v = (document.getElementById('fl-date').value||'').split('-');
     if(v.length!==3) return pwDayKey();
     return ['dom','lun','mar','mer','gio','ven','sab'][new Date(+v[0], +v[1]-1, +v[2]).getDay()];
   }
   function flMacros(){
-    var t = {k:0,p:0,h:0,f:0,s:0,z:0,b:0}, soloKcal = 0, nonContati = 0, righe = 0, olio = null;
+    var t = {k:0,p:0,h:0,f:0,s:0,z:0,b:0,na:0}, soloKcal = 0, nonContati = 0, righe = 0, olio = null;
     FOOD_MEALS.forEach(function(m){
       foodData[m.id].forEach(function(r){
         var g = num(r.g); if(!(g>0)) return;
         righe++;
-        var id = pwMatch(r.n), f = id ? pwFoods[id] : null;
+        var f = pwDiaryFood(r.n);
         var haK = (r.k!=='' && r.k!=null);
         var k100 = haK ? num(r.k) : (f ? f.k : 0);
-        if(id === 'olio' && haK && k100 > 780 && k100 < 870) olio = k100;
+        if(f && f === pwFoods.olio && haK && k100 > 780 && k100 < 870) olio = k100;
         t.k += g*k100/100;
-        if(f){ var x = pwItemTot(id, g); t.p+=x.p; t.h+=x.h; t.f+=x.f; t.s+=x.s; t.z+=x.z; t.b+=x.b; }
+        if(f){ var x = pwItemTot(f, g); t.p+=x.p; t.h+=x.h; t.f+=x.f; t.s+=x.s; t.z+=x.z; t.b+=x.b; t.na+=x.na; }
         else if(haK) soloKcal++;
         else nonContati++;
       });
@@ -1537,7 +1573,8 @@ input,select,textarea{font-size:16px !important;}
       ['Grassi', pwR(t.f)+' g ('+pwR(t.f*9/k*100)+'%)'],
       ['Grassi saturi', pwR(t.s)+' g ('+pwR(t.s*9/k*100)+'%)'],
       ['Zuccheri totali', pwR(t.z)+' g ('+pwR(t.z*4/k*100)+'%)'],
-      ['Fibra', pwR(t.b)+' g']
+      ['Fibra', pwR(t.b)+' g'],
+      ['Sale', pwNum(Math.round(t.na*2.5/100)/10)+' g dagli alimenti riconosciuti, senza quello aggiunto cucinando (massimo 5 g in tutto)']
     ];
     box.innerHTML = rows.map(function(r){ return '<tr><td class="sname">'+r[0]+'</td><td class="swhat">'+r[1]+'</td></tr>'; }).join('');
     var n = [];
@@ -1603,28 +1640,52 @@ input,select,textarea{font-size:16px !important;}
         ['Grassi', 'LARN: 20-35% delle calorie; meglio non oltre il 30% se i carboidrati non sono pochi.', r(k*.20/9)+'-'+r(k*.30/9)+' g'],
         ['Grassi saturi', 'LARN: meno del 10% delle calorie.', 'meno di '+r(k*.10/9)+' g'],
         ['Zuccheri totali', 'LARN: meno del 15% delle calorie, compresi quelli di frutta, latte e yogurt.', 'meno di '+r(k*.15/4)+' g'],
-        ['Zuccheri aggiunti', 'OMS: meno del 10% delle calorie (raccomandazione forte), meglio meno del 5%. Non contano frutta fresca, verdura e latte; contano miele, succhi e dolci.', 'meno di '+r(k*.10/4)+' g, meglio meno di '+r(k*.05/4)+' g'],
+        ['Zuccheri liberi', 'OMS: meno del 10% delle calorie (raccomandazione forte), meglio meno del 5%. Sono quelli aggiunti più miele, sciroppi e succhi di frutta; non contano frutta fresca, verdura e latte.', 'meno di '+r(k*.10/4)+' g, meglio meno di '+r(k*.05/4)+' g'],
         ['Fibra', 'LARN: 12,6-16,7 g ogni 1000 calorie, e mai meno di 25 g.', r(12.6*k/1000)+'-'+r(16.7*k/1000)+' g'],
         ['Sale', 'LARN: sodio al massimo 2 g al giorno, cioè 5 g di sale.', 'al massimo 5 g di sale']
       ];
       document.getElementById('par-table').innerHTML = '<tr><th style="text-align:left">Cosa</th><th style="text-align:left">Riferimento</th><th style="text-align:left">Per te</th></tr>'+
         rif.map(function(x){ return '<tr><td><b>'+x[0]+'</b></td><td>'+x[1]+'</td><td>'+x[2]+'</td></tr>'; }).join('');
+      parFreq();
     };
-    var FREQ = [
-      ['Uova', '2-4 a settimana', '4 a settimana', 'dentro'],
-      ['Formaggi freschi (mozzarella, feta)', '2-3 porzioni da 100 g a settimana', '3 volte, circa 220 g', 'dentro'],
-      ['Legumi', '3-4 o più porzioni da 150 g a settimana', 'ogni giorno', 'dentro'],
-      ['Latte e yogurt', '2-3 porzioni da 125 g al giorno', '400 g di yogurt al giorno', 'dentro'],
-      ['Frutta', '2-3 porzioni da 150 g al giorno', '3-4 porzioni al giorno', 'dentro'],
-      ['Verdura', '1-2 porzioni da 200 g a pasto', 'circa 2 porzioni al giorno: aggiungine quando vuoi, le calorie sono poche', 'al limite basso'],
-      ['Frutta secca', '30 g al giorno', '30 g di mandorle al giorno', 'dentro'],
-      ['Patate', '1-2 porzioni da 200 g a settimana', 'una volta', 'dentro'],
-      ['Carne bianca', '1-2 porzioni da 100 g a settimana', 'pollo 2 volte e cotoletta 1 volta', 'un po\' sopra, al posto del pesce'],
-      ['Carne rossa', '0-1 porzione da 100 g a settimana (il fondo mondiale per la ricerca sul cancro: al massimo 350-500 g cotti)', '2 hamburger del pub, circa 340 g crudi', 'sopra le più severe, dentro il limite più largo'],
-      ['Salumi', 'da evitare', 'speck 30 g una volta', 'poco'],
-      ['Pesce', '3-4 porzioni da 150 g a settimana; quello in scatola una volta', 'solo il tonno, una volta', 'sotto: omega 3 dall\'olio di alghe'],
-      ['Dolci', 'occasionalmente', 'non previsti', 'dentro']
+    // frequenze consigliate (Istituto europeo di oncologia) confrontate con il piano vero, con l'obiettivo scelto
+    var FREQ_DEF = [
+      ['Uova', /^uov/, 50, 2, 4, 'sett', '2-4 uova a settimana', '', '', 'uova'],
+      ['Formaggi freschi', /mozzarella|feta|ricotta|fiocchi di latte|stracchino|crescenza|burrata/, 100, 2, 3, 'sett', '2-3 porzioni da 100 g a settimana', '', ''],
+      ['Carne bianca', /pollo|tacchino|cotoletta|coniglio/, 100, 1, 2, 'sett', '1-2 porzioni da 100 g a settimana', 'sopra: al posto del pesce, per arrivare alle proteine', ''],
+      ['Carne rossa', /hamburger|manzo|maiale|vitello|agnello|bistecca/, 100, 0, 1, 'sett', '0-1 porzione da 100 g a settimana; il fondo mondiale per la ricerca sul cancro accetta fino a 350-500 g cotti', 'sopra la tabella, ma sotto il limite del fondo mondiale', ''],
+      ['Salumi', /speck|bacon|prosciutto|bresaola|salame|salsiccia|mortadella|wurstel|pancetta/, 50, 0, 0, 'sett', 'da evitare', 'poco: meglio ancora meno', ''],
+      ['Pesce', /tonno|salmone|merluzzo|nasello|gamber|pesce|sgombro|sardin|alici/, 150, 3, 4, 'sett', '3-4 porzioni da 150 g a settimana (quello in scatola: 50 g una volta)', '', 'sotto: l\'omega 3 arriva dall\'olio di alghe'],
+      ['Legumi', /fagiol|ceci|lenticch|piselli|fave/, 150, 3, 99, 'sett', '3-4 o più porzioni da 150 g a settimana', '', ''],
+      ['Latte e yogurt', /yogurt|^latte/, 125, 2, 3, 'giorno', '2-3 porzioni da 125 g al giorno', '', ''],
+      ['Frutta', 'frutta', 150, 2, 3, 'giorno', '2-3 porzioni da 150 g al giorno', '', ''],
+      ['Verdura', 'verdura', 200, 2, 4, 'giorno', '1-2 porzioni da 200 g a pasto', '', 'sotto: aggiungi verdura, le calorie sono poche'],
+      ['Frutta secca', /mandorl|noci|nocciol|frutta secca|pistacch|arachid/, 30, 1, 1, 'giorno', '30 g al giorno', '', ''],
+      ['Patate', /patat/, 200, 1, 2, 'sett', '1-2 porzioni da 200 g a settimana', '', '']
     ];
+    function parFreq(){
+      var tot = FREQ_DEF.map(function(){ return 0; });
+      PW_DAYORDER.forEach(function(k){
+        pwScaledDay(k).meals.forEach(function(m){ m.it.forEach(function(it){
+          var f = pwFoods[it[0]]; if(!f) return;
+          var n = pwNorm(f.n);
+          for(var i=0;i<FREQ_DEF.length;i++){
+            var d = FREQ_DEF[i];
+            if(typeof d[1] === 'string' ? f.c === d[1] : d[1].test(n)){ tot[i] += it[1]; break; }
+          }
+        }); });
+      });
+      var colF = function(v){ return /^dentro/.test(v) ? 'var(--success)' : (/^(sopra|sotto)$/.test(v) ? 'var(--danger)' : 'var(--muted)'); };
+      var rows = FREQ_DEF.map(function(d, i){
+        var g = tot[i], porz = g/d[2]/(d[5]==='giorno' ? 7 : 1);
+        var pz = Math.round(porz*10)/10;
+        var txt = d[9]==='uova' ? pwR(g/50)+' uova a settimana' : (pz ? pwNum(pz)+(pz===1 ? ' porzione' : ' porzioni')+(d[5]==='giorno' ? ' al giorno' : ' a settimana')+' ('+pwKcal(pwR(d[5]==='giorno' ? g/7 : g))+' g'+(d[5]==='giorno' ? ' al giorno' : '')+')' : 'nessuna');
+        var v = (pz >= d[3] - 0.25 && pz <= d[4] + 0.25) ? 'dentro' : (pz > d[4] ? (d[7] || 'sopra') : (d[8] || 'sotto'));
+        if(d[0] === 'Carne rossa' && g > 500) v = 'sopra anche il limite del fondo mondiale';
+        return '<tr><td><b>'+d[0]+'</b></td><td>'+d[6]+'</td><td>'+txt+'<br><span style="color:'+colF(v)+';font-weight:600">'+v+'</span></td></tr>';
+      });
+      document.getElementById('par-freq').innerHTML = '<tr><th style="text-align:left">Cibo</th><th style="text-align:left">Linee guida</th><th style="text-align:left">Il tuo piano</th></tr>'+rows.join('');
+    }
     var OTT5 = [
       ['Calorie', 'circa 2.590 (prima avevo scritto 2.650)', ''],
       ['Proteine', '111 g, 1,5 g per chilo, 17%', 'dentro'],
@@ -1632,13 +1693,11 @@ input,select,textarea{font-size:16px !important;}
       ['Grassi', '114 g, 40%', 'sopra il 35%'],
       ['Grassi saturi', '58 g, 20% (prima avevo scritto 17%)', 'il doppio del limite del 10%'],
       ['Zuccheri totali', '125 g, 19% (prima avevo scritto 16%)', 'sopra il 15%'],
-      ['Zuccheri aggiunti', '42 g, 6,5% (prima avevo scritto 5%)', 'dentro il 10% dell\'OMS, sopra l\'ideale del 5%'],
+      ['Zuccheri liberi', '42 g, 6,5% (prima avevo scritto 5%)', 'dentro il 10% dell\'OMS, sopra l\'ideale del 5%'],
       ['Fibra', '22 g; per quelle calorie servono 33-43 g, non 25', 'sotto']
     ];
     function staticTables(){
       var colF = function(s){ return /^dentro/.test(s) ? 'var(--success)' : (/sopra|sotto/.test(s) ? 'var(--danger)' : 'var(--muted)'); };
-      document.getElementById('par-freq').innerHTML = '<tr><th style="text-align:left">Cibo</th><th style="text-align:left">Linee guida</th><th style="text-align:left">Il tuo piano</th></tr>'+
-        FREQ.map(function(x){ return '<tr><td><b>'+x[0]+'</b></td><td>'+x[1]+'</td><td>'+x[2]+'<br><span style="color:'+colF(x[3])+';font-weight:600">'+x[3]+'</span></td></tr>'; }).join('');
       document.getElementById('par-5ott').innerHTML = '<tr><th style="text-align:left">Cosa</th><th style="text-align:left">Ricalcolato</th><th style="text-align:left">Rispetto ai riferimenti</th></tr>'+
         OTT5.map(function(x){ return '<tr><td><b>'+x[0]+'</b></td><td>'+x[1]+'</td><td>'+(x[2] ? '<span style="color:'+colF(x[2])+';font-weight:600">'+x[2]+'</span>' : '')+'</td></tr>'; }).join('');
     }
@@ -2779,9 +2838,9 @@ input,select,textarea{font-size:16px !important;}
     var row = e.target.closest('.fl-row'); if(!row) return;
     var r = foodData[row.dataset.m][parseInt(row.dataset.i,10)];
     if(!r || (r.k !== '' && r.k != null)) return;
-    var id = pwMatch(r.n);
-    if(id && pwFoods[id].k > 0){
-      r.k = pwFoods[id].k;
+    var fd = pwDiaryFood(r.n);
+    if(fd && fd.k > 0){
+      r.k = fd.k;
       row.querySelector('.fl-k').value = r.k;
       updateFoodTotals(); saveFoodDraft();
     }
