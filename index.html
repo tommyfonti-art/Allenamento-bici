@@ -87,10 +87,9 @@ html,body{overscroll-behavior-y:none;}
 .ex-target{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
 .superserie-tag{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent-2); border:1px solid var(--accent-2); border-radius:6px; padding:1px 6px; margin-right:6px; vertical-align:middle;}
 
-.set-grid{display:grid; grid-template-columns:28px 1fr 1fr 32px; gap:8px; align-items:center; margin-bottom:6px;}
+.set-grid{display:grid; grid-template-columns:28px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
 .set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
 .set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
-.set-grid input[type=number].pre{color:var(--muted);}
 .set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
 .ed-pick{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-top:12px; background:var(--surface-2);}
 .ed-pick-title{font-size:13px; font-weight:600; margin-bottom:6px;}
@@ -98,9 +97,8 @@ html,body{overscroll-behavior-y:none;}
 .ed-pick-row{display:flex; align-items:center; gap:8px; font-size:14px; padding:5px 0;}
 .ed-pick-row input{width:20px; height:20px; accent-color:var(--accent-2); flex:none;}
 .ed-pick-det{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted);}
-.set-grid.simple{grid-template-columns:1fr 32px;}
-.set-grid.simple .setnum{display:none;}
-.set-grid.simple .simple-lbl{font-size:14px; color:var(--muted);}
+.ex-memo-in{width:100%; margin-top:4px; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:8px 10px; font-family:'Inter',sans-serif; font-size:14px;}
+.ex-memo-in::placeholder{color:var(--muted-2);}
 .ed-opts{display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;}
 .set-grid .check{width:22px; height:22px; accent-color:var(--success); justify-self:center;}
 .col-lbl{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.04em;}
@@ -290,14 +288,11 @@ input,select,textarea{font-size:16px !important;}
         <div class="pill-row" id="day-picker"></div>
         <button class="btn secondary small" id="edit-sched" type="button">Modifica schede</button>
       </div>
-      <div class="desc" id="pre-hint" style="margin:8px 0 4px">I numeri in grigio sono quelli dell'ultima volta e restano scritti (prima le ripetizioni, poi i kg): cambiali solo quando aumenti. Contano nello storico quando spunti la serie o li modifichi.</div>
+      <div class="desc" id="pre-hint" style="margin:8px 0 4px">Scrivi prima le ripetizioni e poi i kg: si salvano da soli e restano scritti. Li cambi solo quando aumenti.</div>
       <div id="exercise-list"></div>
       <div id="sched-editor" hidden></div>
       <div id="workout-foot">
-        <div class="save-row">
-          <button class="btn" id="save-session">Allenamento finito</button>
-        </div>
-        <div class="save-status" id="save-status">Quello che scrivi si salva da solo. Premi "Allenamento finito" solo alla fine.</div>
+        <div class="save-status" id="save-status"></div>
       </div>
     </div>
 
@@ -1907,7 +1902,7 @@ input,select,textarea{font-size:16px !important;}
           '<input type="text" class="ed-in" data-f="nota" value="'+escA(e.nota)+'" placeholder="Nota (facoltativa)" autocomplete="off">'+
           '<div class="ed-foot">'+
             (kind === 'allenamento' ? '<span class="ed-opts"><label class="ed-ss"><input type="checkbox" data-f="ss"'+(e.ss?' checked':'')+'> Superserie</label>'+
-              '<label class="ed-ss"><input type="checkbox" data-f="semplice"'+(e.semplice?' checked':'')+'> Solo spunta (senza tabella serie, kg e ripetizioni)</label></span>' : '<span class="ed-ss"></span>')+
+              '<label class="ed-ss"><input type="checkbox" data-f="semplice"'+(e.semplice?' checked':'')+'> Solo note (senza tabella serie, kg e ripetizioni)</label></span>' : '<span class="ed-ss"></span>')+
             '<button class="ed-btn" type="button" data-act="up" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
             '<button class="ed-btn" type="button" data-act="down" aria-label="Sposta giù"'+(i===s.esercizi.length-1?' disabled':'')+'>&#9660;</button>'+
             '<button class="ed-btn danger" type="button" data-act="del" aria-label="Elimina esercizio">&#10005;</button>'+
@@ -2410,24 +2405,17 @@ input,select,textarea{font-size:16px !important;}
         html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
       }
       if(ex.nota){ html += '<div class="ex-note">'+escF(ex.nota)+'</div>'; }
-      if(ex.semplice){
-        html += '<div class="set-grid simple"><span class="setnum">1</span>'+
-          '<input type="number" data-field="weight" data-set="1" hidden>'+
-          '<input type="number" data-field="reps" data-set="1" hidden>'+
-          '<span class="simple-lbl">Fatto</span>'+
-          '<input type="checkbox" class="check" data-field="done" data-set="1">'+
-        '</div>';
-      } else {
-      html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span><span class="col-lbl">✓</span></div>';
+      if(!ex.semplice){
+      html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span></div>';
       for(var n=1;n<=ex.serie;n++){
         html += '<div class="set-grid">'+
           '<span class="setnum">'+n+'</span>'+
           '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
           '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
-          '<input type="checkbox" class="check" data-field="done" data-set="'+n+'">'+
         '</div>';
       }
       }
+      html += '<input type="text" class="ex-memo-in" data-field="note" placeholder="Note" autocomplete="off" aria-label="Note su '+escF(ex.nome)+'">';
       html += '<div class="ex-foot"><span class="last-line"></span><span class="ex-saved"></span></div>';
       html += '<div class="ex-hist-slot"></div>';
       html += '</div>';
@@ -2471,35 +2459,39 @@ input,select,textarea{font-size:16px !important;}
     try{ return JSON.parse(localStorage.getItem(draftKey(day))||'null'); }catch(e){ return null; }
   }
   function collectDraft(){
-    var ex = {}, any = false;
+    var ex = {}, notes = {}, any = false;
     document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
+      var mi = exEl.querySelector('.ex-memo-in');
+      if(mi && mi.value){ notes[exEl.dataset.exid || String(i)] = mi.value; any = true; }
       var sets = [];
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         if(!row.querySelector('.setnum')) return;
-        var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
-        var w = wi.classList.contains('pre') ? '' : wi.value;
-        var r = ri.classList.contains('pre') ? '' : ri.value;
-        var d = row.querySelector('[data-field=done]').checked;
+        var w = row.querySelector('[data-field=weight]').value;
+        var r = row.querySelector('[data-field=reps]').value;
+        var dc = row.querySelector('[data-field=done]');
+        var d = dc ? dc.checked : false;
         if(w || r || d) any = true;
         sets.push({w:w, r:r, d:!!d});
       });
       ex[exEl.dataset.exid || String(i)] = sets;
     });
-    return {any:any, ex:ex};
+    return {any:any, ex:ex, notes:notes};
   }
   function fillDraft(draft){
     if(!draft || !draft.ex) return;
     document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
+      var mi = exEl.querySelector('.ex-memo-in');
+      if(mi){ var nt = draft.notes && (draft.notes[exEl.dataset.exid] || draft.notes[String(i)]); if(nt) mi.value = nt; }
       var sets = draft.ex[exEl.dataset.exid] || draft.ex[String(i)] || [];
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         var num = row.querySelector('.setnum');
         if(!num) return;
         var st = sets[parseInt(num.textContent,10)-1];
         if(!st) return;
-        var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
-        if(st.w){ wi.value = st.w; wi.classList.remove('pre'); } else if(!wi.classList.contains('pre')){ wi.value = ''; }
-        if(st.r){ ri.value = st.r; ri.classList.remove('pre'); } else if(!ri.classList.contains('pre')){ ri.value = ''; }
-        row.querySelector('[data-field=done]').checked = !!st.d;
+        row.querySelector('[data-field=weight]').value = st.w || '';
+        row.querySelector('[data-field=reps]').value = st.r || '';
+        var dc = row.querySelector('[data-field=done]');
+        if(dc) dc.checked = !!st.d;
       });
     });
   }
@@ -2544,7 +2536,7 @@ input,select,textarea{font-size:16px !important;}
     var day = currentDay;
     var c = collectDraft();
     if(!draftStartDate[day]) draftStartDate[day] = todayISO;
-    var payload = {day:day, date:draftStartDate[day], updated:Date.now(), ex:c.ex};
+    var payload = {day:day, date:draftStartDate[day], updated:Date.now(), ex:c.ex, notes:c.notes};
     try{ localStorage.setItem(draftKey(day), JSON.stringify(payload)); }catch(e){}
     if(!db){
       keys.forEach(function(k){ setExSaved(pending[k], 'Salvato sul telefono', true); });
@@ -2564,14 +2556,13 @@ input,select,textarea{font-size:16px !important;}
   (function(){
     var list = document.getElementById('exercise-list');
     function onEdit(e){
-      if(!e.target.closest('.set-grid')) return;
-      if(e.target.classList && e.target.classList.contains('pre') && e.type === 'input') e.target.classList.remove('pre');
+      if(!e.target.closest('.set-grid') && !e.target.closest('.ex-memo-in')) return;
       scheduleDraft(e.target.closest('.exercise'));
     }
     list.addEventListener('input', onEdit);
     list.addEventListener('change', onEdit);
     list.addEventListener('focusout', function(e){
-      if(e.target.closest('.set-grid')) flushDraft();
+      if(e.target.closest('.set-grid') || e.target.closest('.ex-memo-in')) flushDraft();
     });
     document.addEventListener('visibilitychange', function(){ if(document.hidden) flushDraft(); });
     window.addEventListener('pagehide', flushDraft);
@@ -2582,21 +2573,21 @@ input,select,textarea{font-size:16px !important;}
   // Mostra in grigio i kg e le ripetizioni dell'ultima volta per lo stesso giorno
   function lastKey(day){ return 'last-sets-'+day; }
   function prefillLast(last, dayAtCall){
-    if(!last || dayAtCall !== currentDay) return;
+    if(!last || dayAtCall !== currentDay || readLocalDraft(dayAtCall)) return;
     var schedAtCall = findSched('allenamento', dayAtCall);
     document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
       var exDef = schedAtCall && schedAtCall.esercizi[i];
       if(!exDef || exDef.semplice) return;
       var found = (last.exercises || []).filter(function(e){ return e.name === exDef.nome; })[0];
       if(!found) return;
+      var filled = false;
       found.sets.forEach(function(st, si){
         [['weight', st.weight], ['reps', st.reps]].forEach(function(pair){
           var inp = exEl.querySelector('[data-field='+pair[0]+'][data-set="'+(si+1)+'"]');
-          if(inp && pair[1] != null && (inp.value === '' || inp.classList.contains('pre'))){
-            inp.value = pair[1]; inp.classList.add('pre');
-          }
+          if(inp && pair[1] != null && inp.value === ''){ inp.value = pair[1]; filled = true; }
         });
       });
+      if(filled) scheduleDraft(exEl);
     });
   }
   function applyLastValues(){
@@ -2646,27 +2637,6 @@ input,select,textarea{font-size:16px !important;}
     }).catch(function(){});
   }
 
-  function collectSession(){
-    var day = curSched('allenamento') || {esercizi:[]};
-    var exList = document.querySelectorAll('#exercise-list .exercise');
-    var exercises = [];
-    exList.forEach(function(exEl, i){
-      var sets = [];
-      exEl.querySelectorAll('.set-grid').forEach(function(row){
-        if(row.querySelector('.setnum')){
-          var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
-          var d = row.querySelector('[data-field=done]').checked;
-          var typed = (!wi.classList.contains('pre') && wi.value !== '') || (!ri.classList.contains('pre') && ri.value !== '');
-          var w = (typed || d) ? wi.value : '';
-          var r = (typed || d) ? ri.value : '';
-          if(w || r || d){ sets.push({weight:w?parseFloat(w):null, reps:r?parseInt(r,10):null, done:!!d}); }
-        }
-      });
-      if(sets.length && day.esercizi[i]){ exercises.push({name:day.esercizi[i].nome, sets:sets}); }
-    });
-    return exercises;
-  }
-
   // ---------- db wiring ----------
   var db=null, userCap=null, uid=null;
   function fmtDate(iso){
@@ -2704,29 +2674,6 @@ input,select,textarea{font-size:16px !important;}
       }).join('');
     }).catch(function(){ el.innerHTML = '<tr><td colspan="2" class="empty">Impossibile caricare.</td></tr>'; });
   }
-
-  document.getElementById('save-session').addEventListener('click', function(){
-    var status = document.getElementById('save-status');
-    if(!db){ status.textContent = 'Salvataggio non disponibile in questa vista.'; return; }
-    var exercises = collectSession();
-    if(!exercises.length){ status.textContent = 'Segna almeno una serie prima di salvare.'; return; }
-    status.textContent = 'Salvataggio...';
-    flushDraft();
-    var finishedDay = currentDay;
-    var finishedSched = curSched('allenamento');
-    db.collection('sessions').add({
-      date: draftStartDate[finishedDay] || todayISO,
-      day: finishedDay,
-      dayLabel: finishedSched ? schedLabel(finishedSched) : String(finishedDay),
-      exercises: exercises
-    }).then(function(){
-      status.textContent = 'Allenamento salvato nello storico.';
-      status.classList.add('ok');
-      clearDraft(finishedDay);
-      renderExercises();
-      loadSessionHistory();
-    }).catch(function(){ status.textContent = 'Errore nel salvataggio, riprova.'; });
-  });
 
   document.getElementById('save-physio').addEventListener('click', function(){
     var status = document.getElementById('physio-status');
