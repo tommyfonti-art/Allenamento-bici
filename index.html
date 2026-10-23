@@ -2684,7 +2684,7 @@ input,select,textarea{font-size:16px !important;}
         var body = (d.exercises || []).map(function(ex){
           var sets = (ex.sets || []).map(function(st){
             if(st.weight == null && st.reps == null) return 'fatto ✓';
-            return (st.weight != null ? st.weight + ' kg' : '—') + ' × ' + (st.reps != null ? st.reps : '—') + (st.done ? ' ✓' : '');
+            return (st.reps != null ? st.reps : '—') + ' × ' + (st.weight != null ? st.weight + ' kg' : '—') + (st.done ? ' ✓' : '');
           }).join('  ·  ');
           return '<div class="hist-ex"><span class="hn">'+ex.name+'</span><span class="hs">'+sets+'</span></div>';
         }).join('');
