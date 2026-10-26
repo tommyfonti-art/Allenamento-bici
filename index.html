@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="it">
-<head><meta name="versione-app" content="2026-10-24b">
+<head><meta name="versione-app" content="2026-10-26a">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Allenamento e alimentazione</title>
@@ -112,6 +112,8 @@ html,body{overscroll-behavior-y:none;}
 .imp-banner{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px;}
 #imp-status.ok{color:#3a9d5d;}
 .btn.small{width:auto; padding:8px 14px; font-size:13px;}
+.pc-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+.pc-row .btn{flex:1 1 130px; text-align:center; text-decoration:none; display:block; box-sizing:border-box;}
 .btn:disabled{opacity:.5}
 
 .save-row{display:flex; gap:8px; align-items:center; margin-top:14px;}
@@ -293,6 +295,21 @@ input,select,textarea{font-size:16px !important;}
       <div id="sched-editor" hidden></div>
       <div id="workout-foot">
         <div class="save-status" id="save-status"></div>
+      </div>
+    </div>
+
+    <div class="card" id="card-coach-pdf">
+      <div class="eyebrow">Per il coach</div>
+      <h2>Esporta gli allenamenti in PDF</h2>
+      <div class="desc">Crea un PDF con tutte le schede di allenamento, con le ripetizioni, i kg e le note che hai scritto tu.</div>
+      <button class="btn" id="pc-make" type="button">Crea il PDF per il coach</button>
+      <div class="save-status" id="pc-status" style="margin-top:8px"></div>
+      <div id="pc-result" hidden>
+        <div class="pc-row">
+          <button class="btn" id="pc-share" type="button" hidden>Condividi</button>
+          <button class="btn secondary" id="pc-open" type="button">Apri il PDF</button>
+          <a class="btn secondary" id="pc-down" href="#">Scarica</a>
+        </div>
       </div>
     </div>
 
@@ -2902,6 +2919,256 @@ input,select,textarea{font-size:16px !important;}
     else fail();
   });
   setFoodData(null); renderFood();
+
+  // ---------- esporta gli allenamenti in PDF per il coach ----------
+  // Il PDF lo scrivo io direttamente (testo e righe, font di base): niente librerie esterne, funziona anche senza rete.
+  // INIZIO-PDF-COACH
+  var PC_WN = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,
+    1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,
+    333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+  var PC_WB = [278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,
+    975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,
+    333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+  function pcW(s, bold, size){
+    var t = bold ? PC_WB : PC_WN, w = 0;
+    String(s == null ? '' : s).split('').forEach(function(ch){
+      var c = ch.charCodeAt(0);
+      if(c === 215) w += 584;
+      else if(c === 176) w += 400;
+      else if(c >= 32 && c <= 126) w += t[c - 32];
+      else {
+        var b = ch.normalize ? ch.normalize('NFD').charAt(0) : ch, bc = b.charCodeAt(0);
+        w += (bc >= 32 && bc <= 126) ? t[bc - 32] : 556;
+      }
+    });
+    return w * size / 1000;
+  }
+  function pcEnc(s){
+    var o = '', map = {8211:150, 8212:151, 8216:145, 8217:146, 8220:147, 8221:148, 8226:149, 8364:128, 8230:133};
+    String(s == null ? '' : s).split('').forEach(function(ch){
+      var c = ch.charCodeAt(0);
+      if(map[c]) c = map[c];
+      else if(c < 32 || (c > 126 && c < 160) || c > 255) c = (c === 10 || c === 9 || c === 13) ? 32 : 63;
+      if(c === 40 || c === 41 || c === 92) o += '\\' + String.fromCharCode(c);
+      else if(c > 126) o += '\\' + ('00' + c.toString(8)).slice(-3);
+      else o += String.fromCharCode(c);
+    });
+    return o;
+  }
+  function pcWrap(s, bold, size, maxW){
+    var out = [];
+    String(s == null ? '' : s).split(/\n/).forEach(function(par){
+      var words = par.replace(/\s+/g, ' ').trim().split(' '), cur = '';
+      words.forEach(function(wd){
+        if(!wd) return;
+        var test = cur ? cur + ' ' + wd : wd;
+        if(pcW(test, bold, size) <= maxW){ cur = test; return; }
+        if(cur){ out.push(cur); cur = ''; }
+        while(pcW(wd, bold, size) > maxW && wd.length > 1){
+          var k = wd.length - 1;
+          while(k > 1 && pcW(wd.slice(0, k), bold, size) > maxW) k--;
+          out.push(wd.slice(0, k)); wd = wd.slice(k);
+        }
+        cur = wd;
+      });
+      out.push(cur);
+    });
+    return out;
+  }
+  // model = { titolo, data, schede:[{ nome, aggiornato, vuota, esercizi:[{ nome, ss, serie, reps, recupero, nota, semplice, sets:[{r,w}], memo }] }] }
+  function pcBuildPdf(model){
+    var PW = 595.28, PH = 841.89, M = 42, pages = [], ops = null, y = 0;
+    var ORA = [242,140,40], INK = [27,40,51], MUT = [86,106,122], LIGHT = [150,160,170], BORD = [207,224,236], HEAD = [232,242,249];
+    function f(n){ return String(Math.round(n * 100) / 100); }
+    function col(c){ return f(c[0]/255) + ' ' + f(c[1]/255) + ' ' + f(c[2]/255); }
+    function text(x, yy, s, size, bold, c){
+      ops.push('BT ' + col(c || INK) + ' rg /' + (bold ? 'F2' : 'F1') + ' ' + size + ' Tf ' + f(x) + ' ' + f(PH - yy) + ' Td (' + pcEnc(s) + ') Tj ET');
+    }
+    function line(x1, y1, x2, y2, w, c){ ops.push(col(c) + ' RG ' + w + ' w ' + f(x1) + ' ' + f(PH - y1) + ' m ' + f(x2) + ' ' + f(PH - y2) + ' l S'); }
+    function fill(x, yy, w, h, c){ ops.push(col(c) + ' rg ' + f(x) + ' ' + f(PH - yy - h) + ' ' + f(w) + ' ' + f(h) + ' re f'); }
+    function startPage(titolo, agg, vuota){
+      ops = []; pages.push(ops);
+      text(M, 30, model.titolo + '  ·  ' + model.data, 9, false, MUT);
+      line(M, 37, PW - M, 37, 1.4, ORA);
+      text(M, 64, titolo, 17, true, INK);
+      y = 80;
+      if(agg){ text(M, y + 2, 'Ultimo salvataggio dei valori: ' + agg, 9, false, MUT); y += 14; }
+      if(vuota){ text(M, y + 4, 'In questa scheda non ci sono ancora valori scritti.', 10, false, MUT); y += 16; }
+      y += 8;
+    }
+    model.schede.forEach(function(sc){
+      startPage(sc.nome, sc.aggiornato, sc.vuota);
+      if(!sc.esercizi.length){ text(M, y + 10, 'Scheda senza esercizi.', 10, false, MUT); }
+      sc.esercizi.forEach(function(ex){
+        var tgt = ex.serie + ' × ' + ex.reps + (ex.recupero != null ? '  ·  recupero ' + ex.recupero + ' s' : '');
+        var nameLines = pcWrap((ex.ss ? '[SS] ' : '') + ex.nome, true, 11, PW - 2*M - pcW(tgt, false, 10) - 14);
+        var noteLines = ex.nota ? pcWrap(ex.nota, false, 9, PW - 2*M) : [];
+        var memoLines = ex.memo ? pcWrap('Note: ' + ex.memo, false, 10, PW - 2*M - 10) : [];
+        var h = nameLines.length * 14 + noteLines.length * 12 + (ex.semplice ? 0 : 54) + (memoLines.length ? memoLines.length * 13 + 8 : 0) + 18;
+        if(y + h > PH - M - 16) startPage(sc.nome + ' (continua)', '', false);
+        var top = y;
+        nameLines.forEach(function(l, i){ text(M, y + 11 + i * 14, l, 11, true); });
+        text(PW - M - pcW(tgt, false, 10), top + 11, tgt, 10, false, MUT);
+        y += nameLines.length * 14;
+        noteLines.forEach(function(l){ text(M, y + 9, l, 9, false, MUT); y += 12; });
+        if(!ex.semplice){
+          y += 4;
+          var nset = ex.sets.length, cw = Math.min(62, (PW - 2*M - 84) / Math.max(1, nset)), tw = 84 + cw * nset;
+          fill(M, y, tw, 16, HEAD);
+          text(M + 6, y + 11.5, 'Serie', 9, true, MUT);
+          ex.sets.forEach(function(st, i){ text(M + 84 + cw * i + 6, y + 11.5, String(i + 1), 9, true, MUT); });
+          y += 16;
+          [['Ripetizioni', 'r'], ['Kg', 'w']].forEach(function(rw){
+            text(M + 6, y + 12, rw[0], 10, false, MUT);
+            ex.sets.forEach(function(st, i){
+              var v = st[rw[1]];
+              text(M + 84 + cw * i + 6, y + 12, v !== '' ? String(v) : '-', 10, v !== '', v !== '' ? INK : LIGHT);
+            });
+            line(M, y + 17, M + tw, y + 17, 0.6, BORD);
+            y += 17;
+          });
+        }
+        if(memoLines.length){
+          y += 8;
+          line(M, y, M, y + memoLines.length * 13 - 2, 2, ORA);
+          memoLines.forEach(function(l){ text(M + 8, y + 9, l, 10, false, INK); y += 13; });
+        }
+        y += 14;
+      });
+    });
+    var n = pages.length;
+    pages.forEach(function(p, i){
+      ops = p;
+      var s = 'Pagina ' + (i + 1) + ' di ' + n;
+      text((PW - pcW(s, false, 8)) / 2, PH - 22, s, 8, false, LIGHT);
+    });
+    var objs = [];
+    objs.push('<< /Type /Catalog /Pages 2 0 R >>');
+    objs.push('');
+    objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+    objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+    var kids = [];
+    pages.forEach(function(p){
+      var c = p.join('\n');
+      objs.push('<< /Length ' + c.length + ' >>\nstream\n' + c + '\nendstream');
+      var cid = objs.length;
+      objs.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + cid + ' 0 R >>');
+      kids.push(objs.length + ' 0 R');
+    });
+    objs[1] = '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + kids.length + ' >>';
+    var out = '%PDF-1.4\n', offs = [];
+    objs.forEach(function(o, i){ offs.push(out.length); out += (i + 1) + ' 0 obj\n' + o + '\nendobj\n'; });
+    var xref = out.length;
+    out += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n';
+    offs.forEach(function(o){ out += ('0000000000' + o).slice(-10) + ' 00000 n \n'; });
+    out += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R /Info << /Title (' + pcEnc(model.titolo) + ') >> >>\nstartxref\n' + xref + '\n%%EOF';
+    var bytes = new Uint8Array(out.length);
+    for(var i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+    return new Blob([bytes], {type:'application/pdf'});
+  }
+  // FINE-PDF-COACH
+
+  // Raccoglie i valori scritti in ogni scheda di allenamento (bozza sul telefono o online; se manca, l'ultima seduta salvata)
+  function pcHasData(d){
+    if(!d) return false;
+    var any = false;
+    Object.keys(d.notes || {}).forEach(function(k){ if(d.notes[k]) any = true; });
+    Object.keys(d.ex || {}).forEach(function(k){ (d.ex[k] || []).forEach(function(st){ if(st && (st.w || st.r)) any = true; }); });
+    return any;
+  }
+  function pcGather(){
+    try{ flushDraft(); }catch(e){}
+    var ids = SCHEDE.allenamento.map(function(s){ return s.id; }), res = {};
+    var jobs = ids.map(function(id){
+      var local = readLocalDraft(id);
+      res[id] = { draft: local, sess: null };
+      if(!db) return Promise.resolve();
+      return db.doc('drafts/'+id).get().then(function(doc){
+        var remote = doc.exists ? doc.data() : null;
+        if(remote && (!local || (remote.updated || 0) > (local.updated || 0))) res[id].draft = remote;
+      }).catch(function(){});
+    });
+    var sessJob = db ? db.collection('sessions').orderBy('date','desc').limit(60).get().then(function(qs){
+      return qs.docs.map(function(x){ return x.data(); });
+    }).catch(function(){ return []; }) : Promise.resolve([]);
+    return Promise.all(jobs.concat([sessJob])).then(function(r){
+      var sessions = r[r.length - 1] || [];
+      ids.forEach(function(id){
+        if(pcHasData(res[id].draft)) return;
+        var s = sessions.filter(function(d){ return d.day === id; })[0] || null;
+        if(!s){ try{ s = JSON.parse(localStorage.getItem('last-sets-'+id) || 'null'); }catch(e){ s = null; } }
+        res[id].sess = s;
+      });
+      return res;
+    });
+  }
+  function pcDateIt(v){
+    var d = typeof v === 'number' ? new Date(v) : new Date(String(v).length <= 10 ? v + 'T00:00:00' : v);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric'});
+  }
+  function pcModel(res){
+    var any = 0;
+    var schede = SCHEDE.allenamento.map(function(s){
+      var src = res[s.id] || {}, d = pcHasData(src.draft) ? src.draft : null, ss = d ? null : src.sess;
+      var agg = d ? (d.updated ? pcDateIt(d.updated) : (d.date ? pcDateIt(d.date) : '')) : (ss && ss.date ? pcDateIt(ss.date) : '');
+      var tot = 0;
+      var esercizi = s.esercizi.map(function(ex, i){
+        var sets = [], memo = '';
+        if(d){
+          var arr = (d.ex && (d.ex[ex.id] || d.ex[String(i)])) || [];
+          for(var n = 0; n < ex.serie; n++){ var st = arr[n] || {}; sets.push({ r: st.r ? String(st.r) : '', w: st.w ? String(st.w) : '' }); }
+          memo = (d.notes && (d.notes[ex.id] || d.notes[String(i)])) || '';
+        } else {
+          var f = ss && (ss.exercises || []).filter(function(e){ return e.name === ex.nome; })[0];
+          for(var m = 0; m < ex.serie; m++){
+            var o = f && f.sets && f.sets[m] || {};
+            sets.push({ r: o.reps != null ? String(o.reps) : '', w: o.weight != null ? String(o.weight) : '' });
+          }
+        }
+        sets.forEach(function(x){ if(x.r !== '' || x.w !== '') tot++; });
+        if(memo) tot++;
+        return { nome: ex.nome, ss: !!ex.ss, serie: ex.serie, reps: ex.reps, recupero: ex.recupero, nota: ex.nota || '', semplice: !!ex.semplice, sets: sets, memo: memo };
+      });
+      any += tot;
+      return { nome: schedLabel(s), aggiornato: tot ? agg : '', vuota: !tot, esercizi: esercizi };
+    });
+    return { titolo: 'Allenamenti di Thomas Fonti', data: fmtDate(todayISO), schede: schede, valori: any };
+  }
+  var pcBlob = null, pcName = '', pcUrl = null;
+  function pcStatus(t, ok){ var el = document.getElementById('pc-status'); el.textContent = t; el.classList.toggle('ok', !!ok); }
+  document.getElementById('pc-make').addEventListener('click', function(){
+    var btn = this;
+    if(!SCHEDE.allenamento.length){ pcStatus('Non ci sono schede di allenamento.', false); return; }
+    btn.disabled = true;
+    document.getElementById('pc-result').hidden = true;
+    pcStatus('Preparo il PDF...', false);
+    pcGather().then(function(res){
+      var model = pcModel(res);
+      pcBlob = pcBuildPdf(model);
+      pcName = 'Allenamenti-Thomas-Fonti-' + todayISO + '.pdf';
+      if(pcUrl){ try{ URL.revokeObjectURL(pcUrl); }catch(e){} }
+      pcUrl = URL.createObjectURL(pcBlob);
+      var down = document.getElementById('pc-down');
+      down.href = pcUrl; down.setAttribute('download', pcName);
+      var canShare = false;
+      try{ canShare = !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File([pcBlob], pcName, {type:'application/pdf'})] })); }catch(e){}
+      document.getElementById('pc-share').hidden = !canShare;
+      document.getElementById('pc-result').hidden = false;
+      var ns = model.schede.length;
+      pcStatus('PDF pronto: ' + ns + (ns === 1 ? ' scheda' : ' schede') + (model.valori ? '' : ', ma senza valori scritti') + '.', true);
+    }).catch(function(){
+      pcStatus('Non sono riuscito a creare il PDF. Riprova.', false);
+    }).then(function(){ btn.disabled = false; });
+  });
+  document.getElementById('pc-open').addEventListener('click', function(){
+    if(pcUrl) window.open(pcUrl, '_blank');
+  });
+  document.getElementById('pc-share').addEventListener('click', function(){
+    if(!pcBlob) return;
+    try{
+      navigator.share({ files: [new File([pcBlob], pcName, {type:'application/pdf'})], title: 'Allenamenti di Thomas Fonti' }).catch(function(){});
+    }catch(e){ pcStatus('Non riesco a condividere: usa «Scarica».', false); }
+  });
 
   function boot(){
     var cfg = window.FIREBASE_CONFIG;

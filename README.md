@@ -30,6 +30,10 @@ Da quel momento l'app salva davvero, su un database solo tuo.
 
 Nelle pagine **Allenamento** e **Fisio** il pulsante **Modifica schede** permette di creare, rinominare, duplicare, spostare ed eliminare le schede, e di aggiungere, cambiare, riordinare ed eliminare gli esercizi (nome, serie, ripetizioni, recupero in secondi, nota). Durante l'allenamento serie, ripetizioni e recupero sono solo in lettura. Le schede stanno nel documento `settings/schede` di Firestore (con una copia sul dispositivo).
 
+## PDF per il coach
+
+Nella pagina **Allenamento**, il riquadro **Per il coach** crea un PDF con tutte le schede di allenamento: per ogni esercizio ripetizioni e kg di ogni serie, più le note scritte da te. I valori vengono dalla seduta in corso (sul telefono o online); se una scheda non ne ha, usa l'ultima seduta salvata. Il PDF si può condividere (dove il telefono lo permette), aprire o scaricare. È scritto direttamente dall'app, senza librerie esterne.
+
 ## Aggiornamenti
 
 Per qualsiasi modifica (nuovi allenamenti, correzioni, nuove sezioni), basta chiederlo a Claude nella chat di Claude: aggiorna il codice e lo pubblica qui.
