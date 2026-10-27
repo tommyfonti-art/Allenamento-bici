@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="it">
-<head><meta name="versione-app" content="2026-10-26a">
+<head><meta name="versione-app" content="2026-10-27a">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Allenamento e alimentazione</title>
@@ -16,7 +16,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="accesso.js"></script>
 <style>
 /* layout: sticky top nav with pill tabs; each tab a stacked-card panel; workout log uses a 3-row set grid per exercise */
 :root{
@@ -3181,18 +3183,20 @@ input,select,textarea{font-size:16px !important;}
       firebase.initializeApp(cfg);
       db = firebase.firestore();
     }catch(e){}
-    loadSessionHistory();
-    loadWeightHistory();
-    loadFoodDay();
-    applyLastValues();
-    loadDraftFromDb();
-    loadMenuFromDb();
-    loadParametriFromDb();
-    loadPianoFromDb();
-    pwLoadPesate();
-    loadSchedeFromDb();
-    loadCardsFromDb();
-    pdfList();
+    accessoRichiesto('Allenamento e alimentazione', function(){
+      loadSessionHistory();
+      loadWeightHistory();
+      loadFoodDay();
+      applyLastValues();
+      loadDraftFromDb();
+      loadMenuFromDb();
+      loadParametriFromDb();
+      loadPianoFromDb();
+      pwLoadPesate();
+      loadSchedeFromDb();
+      loadCardsFromDb();
+      pdfList();
+    });
   }
   boot();
   ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }); });
