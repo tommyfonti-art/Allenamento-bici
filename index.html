@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="it">
-<head><meta name="versione-app" content="2026-10-31a">
+<head><meta name="versione-app" content="2026-10-31b">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Allenamento e alimentazione</title>
@@ -84,7 +84,8 @@ html,body{overscroll-behavior-y:none;}
 
 .exercise{border-top:1px solid var(--border); padding-top:12px; margin-top:12px;}
 .exercise:first-child{border-top:none; margin-top:0; padding-top:0;}
-.ex-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
+.ex-head{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:flex-start; gap:2px 10px; margin-bottom:8px;}
+.ex-head .ex-note{margin:0;}
 .ex-name{font-weight:600; font-size:14.5px;}
 .ex-target{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace;}
 .superserie-tag{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent-2); border:1px solid var(--accent-2); border-radius:6px; padding:1px 6px; margin-right:6px; vertical-align:middle;}
@@ -2398,11 +2399,10 @@ input,select,textarea{font-size:16px !important;}
     var html = '';
     s.esercizi.forEach(function(ex, exi){
       html += '<div class="exercise" data-ex="'+exi+'" data-exid="'+escF(ex.id)+'">';
-      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+escF(ex.nome)+'</span><span class="ex-target">'+ex.serie+'× '+escF(ex.reps)+'</span></div>';
+      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+escF(ex.nome)+'</span><span class="ex-target">'+ex.serie+'× '+escF(ex.reps)+'</span>'+(ex.nota ? '<span class="ex-note">'+escF(ex.nota)+'</span>' : '')+'</div>';
       if(ex.recupero != null){
         html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
       }
-      if(ex.nota){ html += '<div class="ex-note">'+escF(ex.nota)+'</div>'; }
       if(!ex.semplice){
       html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span></div>';
       for(var n=1;n<=ex.serie;n++){
