@@ -2402,7 +2402,7 @@ input,select,textarea{font-size:16px !important;}
     var html = '';
     s.esercizi.forEach(function(ex, exi){
       html += '<div class="exercise" data-ex="'+exi+'" data-exid="'+escF(ex.id)+'">';
-      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+escF(ex.nome)+'</span><span class="ex-target">'+ex.serie+'× '+escF(ex.reps)+'</span>'+(ex.nota ? '<span class="ex-note">'+escF(ex.nota)+'</span>' : '')+'</div>';
+      html += '<div class="ex-head"><span class="ex-name">'+(ex.ss?'<span class="superserie-tag">SS</span>':'')+escF(ex.nome)+'</span><span class="ex-target">'+ex.serie+'× '+escF(ex.reps)+(ex.lr?' per lato':'')+'</span>'+(ex.nota ? '<span class="ex-note">'+escF(ex.nota)+'</span>' : '')+'</div>';
       if(ex.recupero != null){
         html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
       }
