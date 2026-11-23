@@ -91,6 +91,7 @@ html,body{overscroll-behavior-y:none;}
 .superserie-tag{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent-2); border:1px solid var(--accent-2); border-radius:6px; padding:1px 6px; margin-right:6px; vertical-align:middle;}
 
 .set-grid{display:grid; grid-template-columns:28px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
+.set-grid.lr{grid-template-columns:44px 1fr 1fr;}
 .set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
 .set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
 .set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
@@ -1791,7 +1792,7 @@ input,select,textarea{font-size:16px !important;}
         var serie = parseInt(e.serie, 10);
         var rec = (e.recupero === '' || e.recupero == null) ? null : parseInt(e.recupero, 10);
         return { id:eid, nome:String(e.nome == null ? '' : e.nome), serie:(serie > 0 ? Math.min(serie, 30) : 3),
-                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, semplice:!!e.semplice, nota:String(e.nota == null ? '' : e.nota) };
+                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, semplice:!!e.semplice, lr:!!e.lr, nota:String(e.nota == null ? '' : e.nota) };
       })};
     });
   }
@@ -1901,7 +1902,8 @@ input,select,textarea{font-size:16px !important;}
           '<input type="text" class="ed-in" data-f="nota" value="'+escA(e.nota)+'" placeholder="Nota (facoltativa)" autocomplete="off">'+
           '<div class="ed-foot">'+
             (kind === 'allenamento' ? '<span class="ed-opts"><label class="ed-ss"><input type="checkbox" data-f="ss"'+(e.ss?' checked':'')+'> Superserie</label>'+
-              '<label class="ed-ss"><input type="checkbox" data-f="semplice"'+(e.semplice?' checked':'')+'> Solo note (senza tabella serie, kg e ripetizioni)</label></span>' : '<span class="ed-ss"></span>')+
+              '<label class="ed-ss"><input type="checkbox" data-f="semplice"'+(e.semplice?' checked':'')+'> Solo note (senza tabella serie, kg e ripetizioni)</label>'+
+              '<label class="ed-ss"><input type="checkbox" data-f="lr"'+(e.lr?' checked':'')+'> Destra e sinistra (ogni serie ha due righe)</label></span>' : '<span class="ed-ss"></span>')+
             '<button class="ed-btn" type="button" data-act="up" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
             '<button class="ed-btn" type="button" data-act="down" aria-label="Sposta giù"'+(i===s.esercizi.length-1?' disabled':'')+'>&#9660;</button>'+
             '<button class="ed-btn danger" type="button" data-act="del" aria-label="Elimina esercizio">&#10005;</button>'+
@@ -2013,6 +2015,7 @@ input,select,textarea{font-size:16px !important;}
       if(!ex) return;
       if(f === 'ss') ex.ss = e.target.checked;
       else if(f === 'semplice') ex.semplice = e.target.checked;
+      else if(f === 'lr') ex.lr = e.target.checked;
       else if(f === 'serie'){ var n = parseInt(e.target.value, 10); if(n > 0) ex.serie = Math.min(n, 30); }
       else if(f === 'recupero'){ var r = parseInt(e.target.value, 10); ex.recupero = (r >= 0) ? r : null; }
       else ex[f] = e.target.value;
@@ -2023,7 +2026,7 @@ input,select,textarea{font-size:16px !important;}
     var host = document.getElementById(KIND[kind].editor);
     host.addEventListener('click', function(e){ onEditorClick(kind, e); });
     host.addEventListener('input', function(e){ onEditorInput(kind, e); });
-    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss' || e.target.dataset.f === 'semplice') onEditorInput(kind, e); });
+    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss' || e.target.dataset.f === 'semplice' || e.target.dataset.f === 'lr') onEditorInput(kind, e); });
     document.getElementById(KIND[kind].picker).addEventListener('click', function(e){
       var btn = e.target.closest('.pill');
       if(!btn) return;
@@ -2406,11 +2409,15 @@ input,select,textarea{font-size:16px !important;}
       if(!ex.semplice){
       html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span></div>';
       for(var n=1;n<=ex.serie;n++){
-        html += '<div class="set-grid">'+
-          '<span class="setnum">'+n+'</span>'+
-          '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
-          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
-        '</div>';
+        var lati = ex.lr ? ['Sx','Dx'] : [''];
+        lati.forEach(function(lato, li){
+          var k = ex.lr ? ((n-1)*2 + li + 1) : n;
+          html += '<div class="set-grid'+(ex.lr ? ' lr' : '')+'">'+
+            '<span class="setnum">'+(ex.lr ? n+' '+lato : n)+'</span>'+
+            '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+k+'">'+
+            '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+k+'">'+
+          '</div>';
+        });
       }
       }
       html += '<input type="text" class="ex-memo-in" data-field="note" placeholder="Note" autocomplete="off" aria-label="Note su '+escF(ex.nome)+'">';
@@ -2482,10 +2489,11 @@ input,select,textarea{font-size:16px !important;}
       var mi = exEl.querySelector('.ex-memo-in');
       if(mi && !mi.value){ var nt = draft.notes && (draft.notes[exEl.dataset.exid] || draft.notes[String(i)]); if(nt) mi.value = nt; }
       var sets = draft.ex[exEl.dataset.exid] || draft.ex[String(i)] || [];
+      var rowIdx = 0;
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         var num = row.querySelector('.setnum');
         if(!num) return;
-        var st = sets[parseInt(num.textContent,10)-1];
+        var st = sets[rowIdx++];
         if(!st) return;
         var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
         if(wi && !wi.value) wi.value = st.w || '';
@@ -2936,7 +2944,7 @@ input,select,textarea{font-size:16px !important;}
           var nset = ex.sets.length, cw = Math.min(62, (PW - 2*M - 84) / Math.max(1, nset)), tw = 84 + cw * nset;
           fill(M, y, tw, 16, HEAD);
           text(M + 6, y + 11.5, 'Serie', 9, true, MUT);
-          ex.sets.forEach(function(st, i){ text(M + 84 + cw * i + 6, y + 11.5, String(i + 1), 9, true, MUT); });
+          ex.sets.forEach(function(st, i){ text(M + 84 + cw * i + 6, y + 11.5, ex.lr ? (Math.floor(i / 2) + 1) + (i % 2 ? ' Dx' : ' Sx') : String(i + 1), 9, true, MUT); });
           y += 16;
           [['Ripetizioni', 'r'], ['Kg', 'w']].forEach(function(rw){
             text(M + 6, y + 12, rw[0], 10, false, MUT);
@@ -3036,18 +3044,18 @@ input,select,textarea{font-size:16px !important;}
         var sets = [], memo = '';
         if(d){
           var arr = (d.ex && (d.ex[ex.id] || d.ex[String(i)])) || [];
-          for(var n = 0; n < ex.serie; n++){ var st = arr[n] || {}; sets.push({ r: st.r ? String(st.r) : '', w: st.w ? String(st.w) : '' }); }
+          for(var n = 0; n < ex.serie * (ex.lr ? 2 : 1); n++){ var st = arr[n] || {}; sets.push({ r: st.r ? String(st.r) : '', w: st.w ? String(st.w) : '' }); }
           memo = (d.notes && (d.notes[ex.id] || d.notes[String(i)])) || '';
         } else {
           var f = ss && (ss.exercises || []).filter(function(e){ return e.name === ex.nome; })[0];
-          for(var m = 0; m < ex.serie; m++){
+          for(var m = 0; m < ex.serie * (ex.lr ? 2 : 1); m++){
             var o = f && f.sets && f.sets[m] || {};
             sets.push({ r: o.reps != null ? String(o.reps) : '', w: o.weight != null ? String(o.weight) : '' });
           }
         }
         sets.forEach(function(x){ if(x.r !== '' || x.w !== '') tot++; });
         if(memo) tot++;
-        return { nome: ex.nome, ss: !!ex.ss, serie: ex.serie, reps: ex.reps, recupero: ex.recupero, nota: ex.nota || '', semplice: !!ex.semplice, sets: sets, memo: memo };
+        return { nome: ex.nome, ss: !!ex.ss, serie: ex.serie, reps: ex.reps, recupero: ex.recupero, nota: ex.nota || '', semplice: !!ex.semplice, lr: !!ex.lr, sets: sets, memo: memo };
       });
       any += tot;
       return { nome: schedLabel(s), aggiornato: tot ? agg : '', vuota: !tot, esercizi: esercizi };
