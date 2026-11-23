@@ -91,7 +91,10 @@ html,body{overscroll-behavior-y:none;}
 .superserie-tag{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--accent-2); border:1px solid var(--accent-2); border-radius:6px; padding:1px 6px; margin-right:6px; vertical-align:middle;}
 
 .set-grid{display:grid; grid-template-columns:28px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
-.set-grid.lr{grid-template-columns:44px 1fr 1fr;}
+.set-grid.lr{grid-template-columns:16px minmax(0,1fr) minmax(0,1fr); gap:5px;}
+.lr-cols{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:6px;}
+.lr-card{border:1px solid var(--border); border-radius:10px; padding:8px;}
+.lr-title{font-size:12px; font-weight:600; color:var(--accent-2); margin-bottom:4px;}
 .set-grid .setnum{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted-2); text-align:center;}
 .set-grid input[type=number]{width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--fg); border-radius:8px; padding:7px 8px; font-family:'IBM Plex Mono',monospace; font-size:14px;}
 .set-grid input[type=number]::placeholder{color:var(--muted-2); font-family:'Inter',sans-serif;}
@@ -2407,17 +2410,31 @@ input,select,textarea{font-size:16px !important;}
         html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
       }
       if(!ex.semplice){
+      if(ex.lr){
+        html += '<div class="lr-cols">';
+        ['Sinistra','Destra'].forEach(function(lato, li){
+          html += '<div class="lr-card"><div class="lr-title">'+lato+'</div>'+
+            '<div class="set-grid lr"><span></span><span class="col-lbl">rip.</span><span class="col-lbl">kg</span></div>';
+          for(var n=1;n<=ex.serie;n++){
+            var k = (n-1)*2 + li + 1;
+            html += '<div class="set-grid lr" data-idx="'+(k-1)+'">'+
+              '<span class="setnum">'+n+'</span>'+
+              '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+k+'">'+
+              '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+k+'">'+
+            '</div>';
+          }
+          html += '</div>';
+        });
+        html += '</div>';
+      } else {
       html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span></div>';
       for(var n=1;n<=ex.serie;n++){
-        var lati = ex.lr ? ['Sx','Dx'] : [''];
-        lati.forEach(function(lato, li){
-          var k = ex.lr ? ((n-1)*2 + li + 1) : n;
-          html += '<div class="set-grid'+(ex.lr ? ' lr' : '')+'">'+
-            '<span class="setnum">'+(ex.lr ? n+' '+lato : n)+'</span>'+
-            '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+k+'">'+
-            '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+k+'">'+
-          '</div>';
-        });
+        html += '<div class="set-grid">'+
+          '<span class="setnum">'+n+'</span>'+
+          '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
+          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
+        '</div>';
+      }
       }
       }
       html += '<input type="text" class="ex-memo-in" data-field="note" placeholder="Note" autocomplete="off" aria-label="Note su '+escF(ex.nome)+'">';
@@ -2469,15 +2486,17 @@ input,select,textarea{font-size:16px !important;}
       if(only && !only[exEl.dataset.ex]) return;
       var mi = exEl.querySelector('.ex-memo-in');
       if(mi){ notes[key] = mi.value || ''; if(mi.value) any = true; }
-      var sets = [];
+      var sets = [], seq = 0;
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         if(!row.querySelector('.setnum')) return;
+        var pos = row.dataset.idx != null ? parseInt(row.dataset.idx, 10) : seq;
+        seq++;
         var w = row.querySelector('[data-field=weight]').value;
         var r = row.querySelector('[data-field=reps]').value;
         var dc = row.querySelector('[data-field=done]');
         var d = dc ? dc.checked : false;
         if(w || r || d) any = true;
-        sets.push({w:w, r:r, d:!!d});
+        sets[pos] = {w:w, r:r, d:!!d};
       });
       ex[key] = sets;
     });
@@ -2493,7 +2512,7 @@ input,select,textarea{font-size:16px !important;}
       exEl.querySelectorAll('.set-grid').forEach(function(row){
         var num = row.querySelector('.setnum');
         if(!num) return;
-        var st = sets[rowIdx++];
+        var st = sets[row.dataset.idx != null ? parseInt(row.dataset.idx, 10) : rowIdx++];
         if(!st) return;
         var wi = row.querySelector('[data-field=weight]'), ri = row.querySelector('[data-field=reps]');
         if(wi && !wi.value) wi.value = st.w || '';
