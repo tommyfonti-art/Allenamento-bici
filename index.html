@@ -562,6 +562,12 @@ input,select,textarea{font-size:16px !important;}
       <div class="desc" id="cards-count">Nessun riquadro eliminato.</div>
       <button class="btn secondary" id="cards-restore" type="button">Ripristina i riquadri eliminati</button>
     </div>
+    <div class="card" id="card-copia">
+      <h2>Copia di sicurezza</h2>
+      <div class="desc">Un file con tutti i tuoi dati (schede, numeri degli allenamenti, diario cibo, piano, peso, impostazioni), da tenere dove vuoi. I PDF restano nell'app.</div>
+      <button class="btn secondary" id="copia-scarica" type="button">Scarica i dati</button>
+      <div class="save-status" id="copia-status"></div>
+    </div>
     <div class="card" id="card-import">
       <h2>Carica una scheda da PDF</h2>
       <div class="desc">Scegli il PDF della scheda: la creo io, con tutti gli esercizi, e la apro subito. Il PDF non viene salvato.</div>
@@ -763,6 +769,26 @@ input,select,textarea{font-size:16px !important;}
       if(!window.confirm('Eliminare questo riquadro? Puoi ripristinarlo dalle Impostazioni.')) return;
       if(hiddenCards.indexOf(c.dataset.cid) < 0) hiddenCards.push(c.dataset.cid);
       saveHiddenCards(); applyHiddenCards();
+    });
+    document.getElementById('copia-scarica').addEventListener('click', function(){
+      var st = document.getElementById('copia-status');
+      if(!db){ st.textContent = 'Serve la connessione per leggere i dati.'; return; }
+      st.textContent = 'Preparo il file…';
+      var raccolte = ['settings','drafts','foodlog','physio','bodyweight','sessions','pdfs'];
+      Promise.all(raccolte.map(function(r){
+        return db.collection(r).get().then(function(qs){
+          var o = {}; qs.forEach(function(d){ o[d.id] = d.data(); }); return [r, o];
+        }).catch(function(){ return [r, null]; });
+      })).then(function(l){
+        var dati = {}; l.forEach(function(x){ dati[x[0]] = x[1]; });
+        var d = new Date();
+        var nome = 'allenamento-' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + '.json';
+        var blob = new Blob([JSON.stringify({ app:'Allenamento e alimentazione', salvato:d.toISOString(), dati:dati }, null, 2)], { type:'application/json' });
+        var url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+        st.textContent = 'File scaricato.';
+      });
     });
     document.getElementById('cards-restore').addEventListener('click', function(){
       hiddenCards = []; saveHiddenCards(); applyHiddenCards();
