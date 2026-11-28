@@ -15,9 +15,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   pubblica:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,5 +27,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
+  # La pubblicazione è un passaggio separato: così GitHub ha il tempo di registrare il pacchetto del sito.
+  online:
+    needs: pubblica
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
