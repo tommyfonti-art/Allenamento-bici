@@ -92,6 +92,10 @@ html,body{overscroll-behavior-y:none;}
 
 .set-grid{display:grid; grid-template-columns:28px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
 .set-grid.lr{grid-template-columns:16px minmax(0,1fr) minmax(0,1fr); gap:5px;}
+.wcell{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.conv-out{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); min-height:13px; padding-left:2px;}
+.ed-conv{flex-wrap:wrap;}
+.ed-conv select{width:auto; flex:1; min-width:0; padding:6px 8px; font-size:13px;}
 .lr-cols{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:6px;}
 .lr-card{border:1px solid var(--border); border-radius:10px; padding:8px;}
 .lr-title{font-size:12px; font-weight:600; color:var(--accent-2); margin-bottom:4px;}
@@ -1821,7 +1825,7 @@ input,select,textarea{font-size:16px !important;}
         var serie = parseInt(e.serie, 10);
         var rec = (e.recupero === '' || e.recupero == null) ? null : parseInt(e.recupero, 10);
         return { id:eid, nome:String(e.nome == null ? '' : e.nome), serie:(serie > 0 ? Math.min(serie, 30) : 3),
-                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, semplice:!!e.semplice, lr:!!e.lr, nota:String(e.nota == null ? '' : e.nota) };
+                 reps:String(e.reps == null ? '' : e.reps), recupero:(rec >= 0 ? rec : null), ss:!!e.ss, semplice:!!e.semplice, lr:!!e.lr, conv:((e.conv === 'kg2lb' || e.conv === 'lb2kg') ? e.conv : ''), nota:String(e.nota == null ? '' : e.nota) };
       })};
     });
   }
@@ -1932,7 +1936,12 @@ input,select,textarea{font-size:16px !important;}
           '<div class="ed-foot">'+
             (kind === 'allenamento' ? '<span class="ed-opts"><label class="ed-ss"><input type="checkbox" data-f="ss"'+(e.ss?' checked':'')+'> Superserie</label>'+
               '<label class="ed-ss"><input type="checkbox" data-f="semplice"'+(e.semplice?' checked':'')+'> Solo note (senza tabella serie, kg e ripetizioni)</label>'+
-              '<label class="ed-ss"><input type="checkbox" data-f="lr"'+(e.lr?' checked':'')+'> Destra e sinistra (ogni serie ha due righe)</label></span>' : '<span class="ed-ss"></span>')+
+              '<label class="ed-ss"><input type="checkbox" data-f="lr"'+(e.lr?' checked':'')+'> Destra e sinistra (ogni serie ha due righe)</label>'+
+              '<label class="ed-ss ed-conv">Conversione peso <select class="ed-in" data-f="conv">'+
+                '<option value=""'+(!e.conv?' selected':'')+'>Nessuna</option>'+
+                '<option value="kg2lb"'+(e.conv==='kg2lb'?' selected':'')+'>Scrivo kg, vedo libbre</option>'+
+                '<option value="lb2kg"'+(e.conv==='lb2kg'?' selected':'')+'>Scrivo libbre, vedo kg</option>'+
+              '</select></label></span>' : '<span class="ed-ss"></span>')+
             '<button class="ed-btn" type="button" data-act="up" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
             '<button class="ed-btn" type="button" data-act="down" aria-label="Sposta giù"'+(i===s.esercizi.length-1?' disabled':'')+'>&#9660;</button>'+
             '<button class="ed-btn danger" type="button" data-act="del" aria-label="Elimina esercizio">&#10005;</button>'+
@@ -2045,6 +2054,7 @@ input,select,textarea{font-size:16px !important;}
       if(f === 'ss') ex.ss = e.target.checked;
       else if(f === 'semplice') ex.semplice = e.target.checked;
       else if(f === 'lr') ex.lr = e.target.checked;
+      else if(f === 'conv') ex.conv = e.target.value;
       else if(f === 'serie'){ var n = parseInt(e.target.value, 10); if(n > 0) ex.serie = Math.min(n, 30); }
       else if(f === 'recupero'){ var r = parseInt(e.target.value, 10); ex.recupero = (r >= 0) ? r : null; }
       else ex[f] = e.target.value;
@@ -2055,7 +2065,7 @@ input,select,textarea{font-size:16px !important;}
     var host = document.getElementById(KIND[kind].editor);
     host.addEventListener('click', function(e){ onEditorClick(kind, e); });
     host.addEventListener('input', function(e){ onEditorInput(kind, e); });
-    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss' || e.target.dataset.f === 'semplice' || e.target.dataset.f === 'lr') onEditorInput(kind, e); });
+    host.addEventListener('change', function(e){ if(e.target.dataset.f === 'ss' || e.target.dataset.f === 'semplice' || e.target.dataset.f === 'lr' || e.target.dataset.f === 'conv') onEditorInput(kind, e); });
     document.getElementById(KIND[kind].picker).addEventListener('click', function(e){
       var btn = e.target.closest('.pill');
       if(!btn) return;
@@ -2436,29 +2446,34 @@ input,select,textarea{font-size:16px !important;}
         html += '<div class="rest-row"><span class="rest-lbl">Recupero</span><span class="rest-val">'+ex.recupero+' s</span></div>';
       }
       if(!ex.semplice){
+      var wLbl = ex.conv === 'lb2kg' ? 'libbre' : 'kg';
+      var wIn = function(k){
+        var inp = '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+k+'">';
+        return ex.conv ? '<div class="wcell" data-conv="'+ex.conv+'">'+inp+'<span class="conv-out"></span></div>' : inp;
+      };
       if(ex.lr){
         html += '<div class="lr-cols">';
         ['Sinistra','Destra'].forEach(function(lato, li){
           html += '<div class="lr-card"><div class="lr-title">'+lato+'</div>'+
-            '<div class="set-grid lr"><span></span><span class="col-lbl">rip.</span><span class="col-lbl">kg</span></div>';
+            '<div class="set-grid lr"><span></span><span class="col-lbl">rip.</span><span class="col-lbl">'+wLbl+'</span></div>';
           for(var n=1;n<=ex.serie;n++){
             var k = (n-1)*2 + li + 1;
             html += '<div class="set-grid lr" data-idx="'+(k-1)+'">'+
               '<span class="setnum">'+n+'</span>'+
               '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+k+'">'+
-              '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+k+'">'+
+              wIn(k)+
             '</div>';
           }
           html += '</div>';
         });
         html += '</div>';
       } else {
-      html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">kg</span></div>';
+      html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">'+wLbl+'</span></div>';
       for(var n=1;n<=ex.serie;n++){
         html += '<div class="set-grid">'+
           '<span class="setnum">'+n+'</span>'+
           '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
-          '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+n+'">'+
+          wIn(n)+
         '</div>';
       }
       }
@@ -2470,6 +2485,7 @@ input,select,textarea{font-size:16px !important;}
     });
     document.getElementById('exercise-list').innerHTML = html;
     applyLocalDraft();
+    updateConv();
     loadDraftFromDb();
   }
 
@@ -2528,6 +2544,16 @@ input,select,textarea{font-size:16px !important;}
     });
     return {any:any, ex:ex, notes:notes};
   }
+  function updateConv(root){
+    (root || document.getElementById('exercise-list')).querySelectorAll('.wcell').forEach(function(c){
+      var inp = c.querySelector('input'), out = c.querySelector('.conv-out');
+      var v = parseFloat(String(inp.value).replace(',', '.'));
+      if(!(v > 0)){ out.textContent = ''; return; }
+      var tolb = c.dataset.conv === 'kg2lb';
+      var r = tolb ? v * 2.20462 : v / 2.20462;
+      out.textContent = '= ' + r.toFixed(1).replace('.', ',') + (tolb ? ' libbre' : ' kg');
+    });
+  }
   function fillDraft(draft){
     if(!draft || !draft.ex) return;
     document.querySelectorAll('#exercise-list .exercise').forEach(function(exEl, i){
@@ -2547,6 +2573,7 @@ input,select,textarea{font-size:16px !important;}
         if(dc && st.d) dc.checked = true;
       });
     });
+    updateConv();
   }
   function applyLocalDraft(){
     var d = readLocalDraft(currentDay);
@@ -2633,6 +2660,7 @@ input,select,textarea{font-size:16px !important;}
     var list = document.getElementById('exercise-list');
     function onEdit(e){
       if(!e.target.closest('.set-grid') && !e.target.closest('.ex-memo-in')) return;
+      var wc = e.target.closest('.wcell'); if(wc) updateConv(wc.parentNode);
       scheduleDraft(e.target.closest('.exercise'));
     }
     list.addEventListener('input', onEdit);
@@ -2991,7 +3019,7 @@ input,select,textarea{font-size:16px !important;}
           text(M + 6, y + 11.5, 'Serie', 9, true, MUT);
           ex.sets.forEach(function(st, i){ text(M + 84 + cw * i + 6, y + 11.5, ex.lr ? (Math.floor(i / 2) + 1) + (i % 2 ? ' Dx' : ' Sx') : String(i + 1), 9, true, MUT); });
           y += 16;
-          [['Ripetizioni', 'r'], ['Kg', 'w']].forEach(function(rw){
+          [['Ripetizioni', 'r'], [(ex.conv === 'lb2kg' ? 'Libbre' : 'Kg'), 'w']].forEach(function(rw){
             text(M + 6, y + 12, rw[0], 10, false, MUT);
             ex.sets.forEach(function(st, i){
               var v = st[rw[1]];
@@ -3100,7 +3128,7 @@ input,select,textarea{font-size:16px !important;}
         }
         sets.forEach(function(x){ if(x.r !== '' || x.w !== '') tot++; });
         if(memo) tot++;
-        return { nome: ex.nome, ss: !!ex.ss, serie: ex.serie, reps: ex.reps, recupero: ex.recupero, nota: ex.nota || '', semplice: !!ex.semplice, lr: !!ex.lr, sets: sets, memo: memo };
+        return { nome: ex.nome, ss: !!ex.ss, serie: ex.serie, reps: ex.reps, recupero: ex.recupero, nota: ex.nota || '', semplice: !!ex.semplice, lr: !!ex.lr, conv: ex.conv || '', sets: sets, memo: memo };
       });
       any += tot;
       return { nome: schedLabel(s), aggiornato: tot ? agg : '', vuota: !tot, esercizi: esercizi };
