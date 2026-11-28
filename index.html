@@ -92,8 +92,10 @@ html,body{overscroll-behavior-y:none;}
 
 .set-grid{display:grid; grid-template-columns:28px 1fr 1fr; gap:8px; align-items:center; margin-bottom:6px;}
 .set-grid.lr{grid-template-columns:16px minmax(0,1fr) minmax(0,1fr); gap:5px;}
-.wcell{display:flex; flex-direction:column; gap:2px; min-width:0;}
-.conv-out{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); min-height:13px; padding-left:2px;}
+.set-grid.conv{grid-template-columns:28px repeat(3,minmax(0,1fr));}
+.set-grid.lr.conv{grid-template-columns:14px repeat(3,minmax(0,1fr)); gap:3px;}
+.set-grid.lr.conv input[type=number]{padding:7px 4px; font-size:13px;}
+.set-grid input.w2{border-style:dashed;}
 .ed-conv{flex-wrap:wrap;}
 .ed-conv select{width:auto; flex:1; min-width:0; padding:6px 8px; font-size:13px;}
 .lr-cols{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:6px;}
@@ -1939,8 +1941,8 @@ input,select,textarea{font-size:16px !important;}
               '<label class="ed-ss"><input type="checkbox" data-f="lr"'+(e.lr?' checked':'')+'> Destra e sinistra (ogni serie ha due righe)</label>'+
               '<label class="ed-ss ed-conv">Conversione peso <select class="ed-in" data-f="conv">'+
                 '<option value=""'+(!e.conv?' selected':'')+'>Nessuna</option>'+
-                '<option value="kg2lb"'+(e.conv==='kg2lb'?' selected':'')+'>Scrivo kg, vedo libbre</option>'+
-                '<option value="lb2kg"'+(e.conv==='lb2kg'?' selected':'')+'>Scrivo libbre, vedo kg</option>'+
+                '<option value="kg2lb"'+(e.conv==='kg2lb'?' selected':'')+'>Kg e libbre</option>'+
+                '<option value="lb2kg"'+(e.conv==='lb2kg'?' selected':'')+'>Libbre e kg</option>'+
               '</select></label></span>' : '<span class="ed-ss"></span>')+
             '<button class="ed-btn" type="button" data-act="up" aria-label="Sposta su"'+(i===0?' disabled':'')+'>&#9650;</button>'+
             '<button class="ed-btn" type="button" data-act="down" aria-label="Sposta giù"'+(i===s.esercizi.length-1?' disabled':'')+'>&#9660;</button>'+
@@ -2447,18 +2449,20 @@ input,select,textarea{font-size:16px !important;}
       }
       if(!ex.semplice){
       var wLbl = ex.conv === 'lb2kg' ? 'libbre' : 'kg';
+      if(ex.conv) wLbl += '</span><span class="col-lbl">' + (ex.conv === 'lb2kg' ? 'kg' : 'libbre');
+      var cv = ex.conv ? ' conv' : '';
       var wIn = function(k){
         var inp = '<input type="number" step="0.5" placeholder="—" data-field="weight" data-set="'+k+'">';
-        return ex.conv ? '<div class="wcell" data-conv="'+ex.conv+'">'+inp+'<span class="conv-out"></span></div>' : inp;
+        return ex.conv ? inp + '<input type="number" step="0.5" placeholder="—" class="w2" data-conv="'+ex.conv+'" aria-label="Peso convertito">' : inp;
       };
       if(ex.lr){
         html += '<div class="lr-cols">';
         ['Sinistra','Destra'].forEach(function(lato, li){
           html += '<div class="lr-card"><div class="lr-title">'+lato+'</div>'+
-            '<div class="set-grid lr"><span></span><span class="col-lbl">rip.</span><span class="col-lbl">'+wLbl+'</span></div>';
+            '<div class="set-grid lr'+cv+'"><span></span><span class="col-lbl">rip.</span><span class="col-lbl">'+wLbl+'</span></div>';
           for(var n=1;n<=ex.serie;n++){
             var k = (n-1)*2 + li + 1;
-            html += '<div class="set-grid lr" data-idx="'+(k-1)+'">'+
+            html += '<div class="set-grid lr'+cv+'" data-idx="'+(k-1)+'">'+
               '<span class="setnum">'+n+'</span>'+
               '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+k+'">'+
               wIn(k)+
@@ -2468,9 +2472,9 @@ input,select,textarea{font-size:16px !important;}
         });
         html += '</div>';
       } else {
-      html += '<div class="set-grid"><span></span><span class="col-lbl">reps</span><span class="col-lbl">'+wLbl+'</span></div>';
+      html += '<div class="set-grid'+cv+'"><span></span><span class="col-lbl">reps</span><span class="col-lbl">'+wLbl+'</span></div>';
       for(var n=1;n<=ex.serie;n++){
-        html += '<div class="set-grid">'+
+        html += '<div class="set-grid'+cv+'">'+
           '<span class="setnum">'+n+'</span>'+
           '<input type="number" step="1" placeholder="—" data-field="reps" data-set="'+n+'">'+
           wIn(n)+
@@ -2544,14 +2548,19 @@ input,select,textarea{font-size:16px !important;}
     });
     return {any:any, ex:ex, notes:notes};
   }
-  function updateConv(root){
-    (root || document.getElementById('exercise-list')).querySelectorAll('.wcell').forEach(function(c){
-      var inp = c.querySelector('input'), out = c.querySelector('.conv-out');
-      var v = parseFloat(String(inp.value).replace(',', '.'));
-      if(!(v > 0)){ out.textContent = ''; return; }
-      var tolb = c.dataset.conv === 'kg2lb';
-      var r = tolb ? v * 2.20462 : v / 2.20462;
-      out.textContent = '= ' + r.toFixed(1).replace('.', ',') + (tolb ? ' libbre' : ' kg');
+  function fmtPeso(x){ return String(Math.round(x * 10) / 10); }
+  function updateConv(root, fromSecond){
+    (root || document.getElementById('exercise-list')).querySelectorAll('.w2').forEach(function(sec){
+      var row = sec.closest('.set-grid'), pri = row.querySelector('[data-field=weight]');
+      var tolb = sec.dataset.conv === 'kg2lb';
+      if(fromSecond){
+        var w = parseFloat(String(sec.value).replace(',', '.'));
+        pri.value = (w > 0) ? fmtPeso(tolb ? w / 2.20462 : w * 2.20462) : '';
+        return;
+      }
+      if(document.activeElement === sec) return;
+      var v = parseFloat(String(pri.value).replace(',', '.'));
+      sec.value = (v > 0) ? fmtPeso(tolb ? v * 2.20462 : v / 2.20462) : '';
     });
   }
   function fillDraft(draft){
@@ -2660,7 +2669,11 @@ input,select,textarea{font-size:16px !important;}
     var list = document.getElementById('exercise-list');
     function onEdit(e){
       if(!e.target.closest('.set-grid') && !e.target.closest('.ex-memo-in')) return;
-      var wc = e.target.closest('.wcell'); if(wc) updateConv(wc.parentNode);
+      var row = e.target.closest('.set-grid');
+      if(row && row.querySelector('.w2')){
+        if(e.target.classList.contains('w2')) updateConv(row, true);
+        else if(e.target.dataset.field === 'weight') updateConv(row);
+      }
       scheduleDraft(e.target.closest('.exercise'));
     }
     list.addEventListener('input', onEdit);
